@@ -1,35 +1,37 @@
 const EventEmitter = require('events');
 
-class AuthenticationStore extends EventEmitter {
+class PrincipalStore extends EventEmitter {
 	constructor() {
 		super();
 
 		this.mapping = {};
 	}
 
-	put(st, authentication) {
-		this.emit('create', st, authentication);
+	put(ticket, principal) {
+		this.emit('create', ticket, principal);
 
-		return this.mapping[st] = authentication;
+		return this.mapping[ticket] = principal;
 	}
 
-	get(st) {
-		return this.mapping[st];
+	get(ticket) {
+		return this.mapping[ticket];
 	}
 
-	remove(st) {
-		const authentication = this.mapping[st];
-		delete this.mapping[st];
+	remove(ticket) {
+		const principal = this.mapping[ticket];
+		delete this.mapping[ticket];
 
-		this.emit('remove', st, authentication);
+		this.emit('remove', ticket, principal);
 
-		return authentication;
+		return principal;
 	}
 }
 
-class Authentication {
-	constructor() {
-
+class Principal {
+	constructor({ user, attributes }) {
+		this.valid = true;
+		this.user = user;
+		this.attributes = attributes;
 	}
 
 	invalidate() {
@@ -37,10 +39,9 @@ class Authentication {
 
 		return this;
 	}
-
 }
 
 module.exports = {
-	Authentication,
-	AuthenticationStore
+	Principal,
+	PrincipalStore
 };

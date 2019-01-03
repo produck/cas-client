@@ -1,33 +1,74 @@
 const NodeRSA = require('node-rsa');
 const cookie = require('cookie');
+const getRawBody = require('raw-body');
+const qs = require('qs');
 const RSAKey = new NodeRSA({b: 384});
+const mm = require('micromatch');
 const debug = require('debug')('cas');
+const { parseString } = require('xml2js');
+const { stripPrefix } = require('xml2js/lib/processors');
 
 const { CasServerAgent } = require('./src/agent');
-const { AuthenticationStore } = require('./src/store');
+const { PrincipalStore, Principal } = require('./src/store');
 
 const DEFAULT_COOKIE_OPTIONS = {
 	key: 'st',
 	httpOnly: true
 };
 
-const DEFAULT_CLIENT_PATH_FILTER = {
-	ignore: []
-};
-
 module.exports = function createHttpServerHandler({
-	origin, path = {}, options
+	origin,
+	prefix = '',
+	path = {},
+	slo = {
+		enabled: true,
+		path: '/'
+	},
+	ignore = [],
+	principalParser,
+	redirect = true
 }, {
 	key, httpOnly
-} = DEFAULT_COOKIE_OPTIONS, {
-	ignore
-} = DEFAULT_CLIENT_PATH_FILTER, init = () => {}) {
-	const agent = new CasServerAgent(origin, path, options);
-	const store = new AuthenticationStore();
+} = DEFAULT_COOKIE_OPTIONS, init = () => {}) {
+	const agent = new CasServerAgent(origin, prefix, path, principalParser);
+	const store = new PrincipalStore();
+	const matcher = mm.matcher(ignore);
 
 	init(agent, store);
 
 	return async function (req, res) {
+		/**
+		 * SLO
+		 */
+		if (slo.enabled && req.method === 'POST' && req.url === slo.path) {
+			const buffer = await getRawBody(req);
+			const { logoutRequest } = qs.parse(buffer.toString('utf-8'));
+
+			if (logoutRequest) {
+				await parseString(logoutRequest, {
+					explicitRoot: false,
+					tagNameProcessors: [stripPrefix]
+				}, (error, result) => {
+					if (error) {
+						return reject(error);
+					}
+					
+					store.remove(result['SessionIndex'][0]);
+				});
+
+				return true;
+			} 
+
+			throw new Error('Bad cas SLO request.');
+		}
+
+		/**
+		 * Ignore
+		 */
+		if (matcher(req.url, ignore)) {
+			return true;
+		}
+
 		/**
 		 * Try to resolve st in cookie.
 		 */
@@ -37,23 +78,20 @@ module.exports = function createHttpServerHandler({
 		if (ticketFromCookie) {
 			try {
 				ticketFromCookie = RSAKey.decrypt(ticketFromCookie, 'utf8');
+				const principal = store.get(ticketFromCookie);
+	
+				if (principal && principal.valid) {
+					req.cas = principal;
+					
+					return true;
+				}
+				
+				store.remove(ticketFromCookie);
+				res.setHeader('Set-Cookie', cookie.serialize(key, ''));
 			} catch (error) {
 				ticketFromCookie = null;
 				debug(error.message);
 			}
-		}
-
-		if (ticketFromCookie) {
-			const authentication = store.get(ticketFromCookie);
-
-			if (authentication && authentication.valid) {
-				req.cas = authentication;
-				
-				return true;
-			}
-			
-			store.remove(ticketFromCookie);
-			res.setHeader('Set-Cookie', cookie.serialize(key, null));
 		}
 
 		/**
@@ -65,9 +103,20 @@ module.exports = function createHttpServerHandler({
 		if (ticket) {
 			requestURL.searchParams.delete('ticket');
 			const serviceURL = requestURL.toString();
-			const response = await agent.validateService(ticket, serviceURL);
+			const principalOptions = await agent.validateService(ticket, serviceURL);
 
-			res.end(JSON.stringify(response))
+			store.put(ticket, new Principal(principalOptions));
+			
+			const encryptedTicket = RSAKey.encrypt(ticket, 'base64');
+			res.setHeader('Set-Cookie', cookie.serialize(key, encryptedTicket, {
+				httpOnly
+			}));
+
+			res.setHeader('Location', serviceURL);
+			res.statusCode = 302;
+			res.end();
+
+			return true;
 		} else {
 			const serviceURL = requestURL.toString();
 			const redirectLocation = new URL(agent.loginPath);
@@ -80,8 +129,5 @@ module.exports = function createHttpServerHandler({
 			return false;
 		}
 
-		// res.setHeader('Set-Cookie', cookie.serialize(key, RSAKey.encrypt(ticketFromCookie, 'base64'), {
-		// 	httpOnly
-		// }));
 	}
 }

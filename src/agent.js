@@ -5,16 +5,14 @@ const { stripPrefix } = require('xml2js/lib/processors');
 const EventEmitter = require('events');
 
 const DEFAULT_SERVER_PATH = {
-	validate: '/cas/validate',
-	serviceValidate: '/cas/serviceValidate',
-	proxy: '/cas/proxy',
-	login: '/cas/login',
-	logout: '/cas/logout',
-	proxyCallback: '/cas/proxyCallback'
+	validate: '/validate',
+	serviceValidate: '/serviceValidate',
+	proxy: '/proxy',
+	login: '/login',
+	logout: '/logout',
+	proxyCallback: '/proxyCallback'
 };
 const PATH_ITEM_LIST = Object.keys(DEFAULT_SERVER_PATH);
-const DEFAULT_OPTIONS = { slo: true, redirect: true };
-const OPTIONS_ITEM_LIST = Object.keys(DEFAULT_OPTIONS);
 
 class CasAgentError extends Error {}
 class CasAgentServerError extends CasAgentError {}
@@ -27,24 +25,27 @@ class CasAgentAuthenticationError extends CasAgentError {
 }
 
 class CasServerAgent extends EventEmitter {
-	constructor(origin, path = {}, options = {}, principalParser = DefaultPrincipalParser) {
+	constructor(origin, prefix = '', path = {}, principalParser = DefaultPrincipalParser) {
 		super();
 
 		if (!_.isString(origin)) {
 			throw new CasAgentError('Origin MUST be a string in construction.');
 		}
 
-		this.principalParser = principalParser;
+		const { host, port } = new URL(origin);
+
+		this.$api = axios.create({ baseURL: `${origin}${prefix}` });
+
 		this.origin = origin;
+		this.host = host;
+		this.prefix = prefix;
+		this.port = port;
 		this.path = Object.assign({}, DEFAULT_SERVER_PATH, _.pick(path, PATH_ITEM_LIST));
-		this.options = Object({}, DEFAULT_OPTIONS, _.pick(options, OPTIONS_ITEM_LIST));
-		this.$api = axios.create({
-			baseURL: origin,
-		});
+		this.principalParser = principalParser;
 	}
 
 	get loginPath() {
-		return new URL(this.path.login, this.origin).toString();
+		return new URL(`${this.prefix}${this.path.login}`, this.origin).toString();
 	}
 
 	async validateService(ticket, service) {
@@ -97,6 +98,6 @@ function DefaultPrincipalParser(authenticationSuccessResult) {
 
 	return {
 		user: user[0],
-		attributes: attributes[0]
+		attributes: attributes && attributes[0]
 	};
 }

@@ -10,7 +10,7 @@
 			"name": "Launch Program",
 			"program": "${workspaceFolder}/test/index.js",
 			"env": {
-				"DEBUG": "cas"
+				"DEBUG": "*"
 			}
 		}
 	]
