@@ -6,6 +6,7 @@ const casServer = 'http://localhost:9000';
 const prefix = '/cas';
 
 const casHandler = cas({
+	cas: 3,
 	origin: casServer,
 	prefix,
 	slo: {
@@ -37,5 +38,7 @@ app.use((ctx) => {
 
 	});
 
-	ctx.body = `<a href="${casServer}${prefix}/logout">hello</a>`
+	ctx.body = `<a href="${casServer}${prefix}/logout">hello</a><pre>`
+	ctx.body += JSON.stringify(ctx.req.cas, null, 2);
+	ctx.body += '</pre>'
 }).listen(2000, '0.0.0.0');

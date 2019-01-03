@@ -17,20 +17,19 @@ const DEFAULT_COOKIE_OPTIONS = {
 };
 
 module.exports = function createHttpServerHandler({
+	cas = 3,
 	origin,
 	prefix = '',
-	path = {},
 	slo = {
 		enabled: true,
 		path: '/'
 	},
 	ignore = [],
-	principalParser,
 	redirect = true
 }, {
 	key, httpOnly
 } = DEFAULT_COOKIE_OPTIONS, init = () => {}) {
-	const agent = new CasServerAgent(origin, prefix, path, principalParser);
+	const agent = new CasServerAgent(origin, prefix, cas);
 	const store = new PrincipalStore();
 	const matcher = mm.matcher(ignore);
 

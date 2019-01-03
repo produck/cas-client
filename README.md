@@ -4,6 +4,7 @@
 
 ```js
 const casHandler = cas({
+	cas: 3,
 	origin: 'http://localhost:9000',
 	prefix: '/cas',
 	slo: {

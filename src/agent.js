@@ -5,15 +5,24 @@ const { stripPrefix } = require('xml2js/lib/processors');
 const EventEmitter = require('events');
 const debug = require('debug')('cas:agent');
 
-const DEFAULT_SERVER_PATH = {
-	validate: '/validate',
-	serviceValidate: '/serviceValidate',
-	proxy: '/proxy',
+const CAS_SERVER_URI = {
 	login: '/login',
 	logout: '/logout',
-	proxyCallback: '/proxyCallback'
+	validate: '/validate',
+	serviceValidate: '/serviceValidate',
+	proxyValidate: '/proxyValidate',
+	proxy: '/proxy',
+	p3: {
+		serviceValidate: '/p3/serviceValidate',
+		proxyValidate: '/p3/proxyValidate',
+	}
 };
-const PATH_ITEM_LIST = Object.keys(DEFAULT_SERVER_PATH);
+
+const VALIDATE_PROTOCOL_MAPPING = [
+	CAS_SERVER_URI.validate,
+	CAS_SERVER_URI.serviceValidate,
+	CAS_SERVER_URI.p3.serviceValidate
+];
 
 class CasAgentError extends Error {}
 class CasAgentServerError extends CasAgentError {}
@@ -26,7 +35,7 @@ class CasAgentAuthenticationError extends CasAgentError {
 }
 
 class CasServerAgent extends EventEmitter {
-	constructor(origin, prefix = '', path = {}, principalParser = DefaultPrincipalParser) {
+	constructor(origin, prefix = '', cas = 3) {
 		super();
 
 		if (!_.isString(origin)) {
@@ -37,23 +46,20 @@ class CasServerAgent extends EventEmitter {
 
 		this.$api = axios.create({ baseURL: `${origin}${prefix}` });
 
+		this.cas = cas;
 		this.origin = origin;
 		this.host = host;
 		this.prefix = prefix;
 		this.port = port;
-		this.path = Object.assign({}, DEFAULT_SERVER_PATH, _.pick(path, PATH_ITEM_LIST));
-		this.principalParser = principalParser;
 	}
 
 	get loginPath() {
-		return new URL(`${this.prefix}${this.path.login}`, this.origin).toString();
+		return new URL(`${this.prefix}${CAS_SERVER_URI.login}`, this.origin).toString();
 	}
 
 	async validateService(ticket, service) {
-		let response;
-
 		try {
-			response = await this.$api.get(this.path.serviceValidate, {
+			var response = await this.$api.get(VALIDATE_PROTOCOL_MAPPING[this.cas - 1], {
 				params: {
 					ticket, service
 				}
@@ -76,16 +82,12 @@ class CasServerAgent extends EventEmitter {
 				}
 
 				if (result.authenticationSuccess && result.authenticationSuccess[0]) {
-					resolve(this.principalParser(result));
+					resolve(parserPrincipal(result));
 				}
 
 				throw new CasAgentAuthenticationError('Ticket error.', data);
 			});
 		});
-	}
-
-	setPrincipalParser(parserFn) {
-		this.principalParser = parserFn;
 	}
 }
 
@@ -95,7 +97,7 @@ module.exports = {
 	CasAgentAuthenticationError
 };
 
-function DefaultPrincipalParser(authenticationSuccessResult) {
+function parserPrincipal(authenticationSuccessResult) {
 	const { authenticationSuccess } = authenticationSuccessResult;
 	const { user, attributes } = authenticationSuccess[0];
 
