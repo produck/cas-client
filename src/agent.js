@@ -3,6 +3,7 @@ const axios = require('axios');
 const { parseString } = require('xml2js');
 const { stripPrefix } = require('xml2js/lib/processors');
 const EventEmitter = require('events');
+const debug = require('debug')('cas:agent');
 
 const DEFAULT_SERVER_PATH = {
 	validate: '/validate',
@@ -62,6 +63,8 @@ class CasServerAgent extends EventEmitter {
 		}
 
 		const { data } = response;
+		debug('Validation response XML START:\n\n' + data);
+		debug('Validation response XML END.');
 
 		return new Promise((resolve, reject) => {
 			parseString(data, {

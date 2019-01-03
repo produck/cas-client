@@ -27,18 +27,14 @@ app.use(async ({ req, res }, next) => {
 });
 
 app.use(bodyparser({
-	onerror(error) {
-		console.log(error)
-	}
 }));
 
 app.use((ctx) => {
-	console.log('ri', ctx.request.body);
+	// console.log('ri', ctx.request.body);
 	// console.log(ctx.req.cas);
 	ctx.req.on('data', data => {
 		buffer = Buffer.concat([buffer, data]);
 
-		console.log(buffer);
 	});
 
 	ctx.body = `<a href="${casServer}${prefix}/logout">hello</a>`
