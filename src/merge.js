@@ -151,7 +151,7 @@ function validateOptions(options) {
 function DefaultOptionsFactory() {
 	return {
 		cas: 3,
-		prefix: '',
+		prefix: '/',
 		redirect: false,
 		slo: {
 			enabled: true,

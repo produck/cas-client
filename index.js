@@ -8,8 +8,8 @@ const { getRawBody, parseXML, decrypt, encrypt, sendRedirect } = require('./src/
 const { CasServerAgent } = require('./src/agent');
 const { PrincipalStore, Principal } = require('./src/store');
 
-exports.createCasClientHandler = function createCasClientHandler(options = {}) {
-	const { cas, origin, prefix, slo, ignore, path, session } = merge(options);
+module.exports = function createCasClientHandler(...options) {
+	const { cas, origin, prefix, slo, ignore, path, session } = merge(...options);
 	const agent = new CasServerAgent({ origin, prefix, cas, path });
 	const store = new PrincipalStore();
 	const matcher = mm.matcher(ignore);

@@ -1,37 +1,26 @@
+const httpCasClient = require('../..');
+const presets = require('../../presets/apereo');
 const Koa = require('koa');
-const bodyparser = require('koa-bodyparser');
-const { createCasClientHandler } = require('../..');
+const app = new Koa();
 
 const origin = 'http://localhost:9000';
 const prefix = '/cas';
 
-const casHandler = createCasClientHandler({
-	origin,
-	prefix
-});
+const casClientHandler = httpCasClient({ origin, prefix });
 
-const app = new Koa();
+app.use(async (ctx, next) => {
+	// This is a middleware may be very abstract.
+	// Ensuring need to continue then call next().
+	if(await casClientHandler(ctx.req, ctx.res)) {
+		ctx.principal = ctx.request.principal = ctx.req.principal;
 
-app.use(async ({ req, res }, next) => {
-	if(await casHandler(req, res)) {
 		return next();
 	}
+}).use(ctx => {
+	const principal = ctx.principal;
 
-	return;
-});
-
-app.use(bodyparser({
-}));
-
-app.use((ctx) => {
-	// console.log('ri', ctx.request.body);
-	// console.log(ctx.req.cas);
-	ctx.req.on('data', data => {
-		buffer = Buffer.concat([buffer, data]);
-
-	});
-
-	ctx.body = `<a href="${origin}${prefix}/logout">hello</a><pre>`
-	ctx.body += JSON.stringify(ctx.req.principal, null, 2);
+	// your statements...
+	ctx.body = `<a href="${origin}${prefix}/logout">SLO</a><pre>`
+	ctx.body += JSON.stringify(principal, null, 2);
 	ctx.body += '</pre>'
-}).listen(2000, '0.0.0.0');
+}).listen(2000);

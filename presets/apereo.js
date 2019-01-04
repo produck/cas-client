@@ -1,4 +1,4 @@
-exports.apereo4 = {
+exports['apereo =4.0.x'] = {
 	path: {
 		login: '/login',
 		logout: '/logout',
@@ -13,7 +13,7 @@ exports.apereo4 = {
 	}
 };
 
-exports.apereo5 = {
+exports['apereo >4.1.x'] = {
 	path: {
 		login: '/login',
 		logout: '/logout',
@@ -27,5 +27,3 @@ exports.apereo5 = {
 		}
 	}
 };
-
-exports.apereo6 = exports.apereo5;
