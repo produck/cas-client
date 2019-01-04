@@ -1,20 +1,13 @@
 const Koa = require('koa');
 const bodyparser = require('koa-bodyparser');
-const cas = require('../');
+const { createCasClientHandler } = require('../..');
 
-const casServer = 'http://localhost:9000';
+const origin = 'http://localhost:9000';
 const prefix = '/cas';
 
-const casHandler = cas({
-	cas: 3,
-	origin: casServer,
-	prefix,
-	slo: {
-		enabled: true,
-		path: '/'
-	},
-	ignore: ['/*.ico'],
-	redirect: false
+const casHandler = createCasClientHandler({
+	origin,
+	prefix
 });
 
 const app = new Koa();
@@ -38,7 +31,7 @@ app.use((ctx) => {
 
 	});
 
-	ctx.body = `<a href="${casServer}${prefix}/logout">hello</a><pre>`
-	ctx.body += JSON.stringify(ctx.req.cas, null, 2);
+	ctx.body = `<a href="${origin}${prefix}/logout">hello</a><pre>`
+	ctx.body += JSON.stringify(ctx.req.principal, null, 2);
 	ctx.body += '</pre>'
 }).listen(2000, '0.0.0.0');

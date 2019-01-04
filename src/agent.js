@@ -1,28 +1,8 @@
-const _ = require('lodash');
 const axios = require('axios');
 const { parseString } = require('xml2js');
 const { stripPrefix } = require('xml2js/lib/processors');
 const EventEmitter = require('events');
 const debug = require('debug')('cas:agent');
-
-const CAS_SERVER_URI = {
-	login: '/login',
-	logout: '/logout',
-	validate: '/validate',
-	serviceValidate: '/serviceValidate',
-	proxyValidate: '/proxyValidate',
-	proxy: '/proxy',
-	p3: {
-		serviceValidate: '/p3/serviceValidate',
-		proxyValidate: '/p3/proxyValidate',
-	}
-};
-
-const VALIDATE_PROTOCOL_MAPPING = [
-	CAS_SERVER_URI.validate,
-	CAS_SERVER_URI.serviceValidate,
-	CAS_SERVER_URI.p3.serviceValidate
-];
 
 class CasAgentError extends Error {}
 class CasAgentServerError extends CasAgentError {}
@@ -35,31 +15,34 @@ class CasAgentAuthenticationError extends CasAgentError {
 }
 
 class CasServerAgent extends EventEmitter {
-	constructor(origin, prefix = '', cas = 3) {
+	constructor({ origin, prefix, cas, path }) {
 		super();
 
-		if (!_.isString(origin)) {
-			throw new CasAgentError('Origin MUST be a string in construction.');
-		}
-
 		const { host, port } = new URL(origin);
-
-		this.$api = axios.create({ baseURL: `${origin}${prefix}` });
-
+		
 		this.cas = cas;
+		this.path = path;
 		this.origin = origin;
 		this.host = host;
 		this.prefix = prefix;
 		this.port = port;
+
+		this.$api = axios.create({ baseURL: `${origin}${prefix}` });
+	}
+
+	get validatePath() {
+		const { validate, serviceValidate, p3 } = this.path;
+
+		return [validate, serviceValidate, p3.serviceValidate][this.cas - 1];
 	}
 
 	get loginPath() {
-		return new URL(`${this.prefix}${CAS_SERVER_URI.login}`, this.origin).toString();
+		return new URL(`${this.prefix}${this.path.login}`, this.origin).toString();
 	}
 
 	async validateService(ticket, service) {
 		try {
-			var response = await this.$api.get(VALIDATE_PROTOCOL_MAPPING[this.cas - 1], {
+			var response = await this.$api.get(this.validatePath, {
 				params: {
 					ticket, service
 				}

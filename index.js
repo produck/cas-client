@@ -7,7 +7,7 @@ const mm = require('micromatch');
 const debug = require('debug')('cas');
 const { parseString } = require('xml2js');
 const { stripPrefix } = require('xml2js/lib/processors');
-
+const merge = require('./src/merge');
 const { CasServerAgent } = require('./src/agent');
 const { PrincipalStore, Principal } = require('./src/store');
 
@@ -16,20 +16,11 @@ const DEFAULT_COOKIE_OPTIONS = {
 	httpOnly: true
 };
 
-module.exports = function createHttpServerHandler({
-	cas = 3,
-	origin,
-	prefix = '',
-	slo = {
-		enabled: true,
-		path: '/'
-	},
-	ignore = [],
-	redirect = true
-}, {
+exports.createCasClientHandler = function createCasClientHandler(options = {}, {
 	key, httpOnly
 } = DEFAULT_COOKIE_OPTIONS, init = () => {}) {
-	const agent = new CasServerAgent(origin, prefix, cas);
+	const { cas, origin, prefix, slo, ignore, path } = merge(options);
+	const agent = new CasServerAgent({ origin, prefix, cas, path });
 	const store = new PrincipalStore();
 	const matcher = mm.matcher(ignore);
 
@@ -80,7 +71,7 @@ module.exports = function createHttpServerHandler({
 				const principal = store.get(ticketFromCookie);
 	
 				if (principal && principal.valid) {
-					req.cas = principal;
+					req.principal = principal;
 					
 					return true;
 				}
@@ -129,4 +120,4 @@ module.exports = function createHttpServerHandler({
 		}
 
 	}
-}
+};

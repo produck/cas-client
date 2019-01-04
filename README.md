@@ -1,7 +1,6 @@
-# cas-client
+# http-cas-client
 
-## Koa2 middleware wrap
-
+## Create handler
 ```js
 const casHandler = cas({
 	cas: 3,
@@ -15,6 +14,26 @@ const casHandler = cas({
 	redirect: false
 });
 
+```
+
+## In framework
+
+### Use in http server
+```js
+http.createServer(async (req, res) => {
+	const doNext = casHandler(req, res);
+
+	if (!doNext) {
+		return res.end('...');
+	}
+});
+```
+
+### Express middleware wrap
+
+### Koa2 middleware wrap
+
+```js
 const app = new Koa();
 
 app.use(async ({ req, res }, next) => {
@@ -25,3 +44,5 @@ app.use(async ({ req, res }, next) => {
 	return;
 });
 ```
+
+### Use in koa2 with session(memory store)
