@@ -7,7 +7,6 @@
     "test": "test"
   },
   "dependencies": {
-    "axios": "^0.18.0",
     "cookie": "^0.3.1",
     "debug": "^4.1.1",
     "micromatch": "^3.1.10",
@@ -39,7 +38,7 @@
     "http",
     "express"
   ],
-  "author": "",
+  "author": "ChaosLee",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/lemonce/cas-client/issues"

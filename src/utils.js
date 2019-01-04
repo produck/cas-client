@@ -1,9 +1,21 @@
-exports.request = function request() {
+const http = require('http');
 
-};
-
-exports.parseQueryString = function parseQueryString() {
-
+exports.request = function request(url) {
+	return new Promise((resolve, reject) => {
+		http.get(url, res => {
+			const { statusCode } = res;
+	
+			if (res.statusCode !== 200) {
+				res.resume();
+				return reject (new Error(`Request Failed.\nStatus Code: ${statusCode}`));
+			}
+			
+			let rawData = '';
+			res.setEncoding('utf8');
+			res.on('data', (chunk) => { rawData += chunk; });
+			res.on('end', () => resolve(rawData));
+		}).on('error', error => reject(error));
+	});
 };
 
 exports.getRawBody = function getRawBody(request) {

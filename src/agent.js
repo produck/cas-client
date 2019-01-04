@@ -1,7 +1,6 @@
-const axios = require('axios');
 const EventEmitter = require('events');
 const debug = require('debug')('cas:agent');
-const { parseXML } = require('./utils');
+const { parseXML, request } = require('./utils');
 
 class CasAgentError extends Error {}
 class CasAgentServerError extends CasAgentError {}
@@ -25,8 +24,6 @@ class CasServerAgent extends EventEmitter {
 		this.host = host;
 		this.prefix = prefix;
 		this.port = port;
-
-		this.$api = axios.create({ baseURL: `${origin}${prefix}` });
 	}
 
 	get validatePath() {
@@ -41,17 +38,13 @@ class CasServerAgent extends EventEmitter {
 
 	async validateService(ticket, service) {
 		try {
-			var response = await this.$api.get(this.validatePath, {
-				params: {
-					ticket, service
-				}
-			});
+			var data = await request(`${this.origin}${this.prefix}${this.validatePath}?` +
+				`ticket=${encodeURIComponent(ticket)}&service=${encodeURIComponent(service)}`);
+
 		} catch (error) {
 			throw new CasAgentServerError('CAS server can NOT be connected.');
 		}
 
-		const { data } = response;
-		
 		debug('Validation response XML START:\n\n' + data);
 		debug('Validation response XML END.');
 
