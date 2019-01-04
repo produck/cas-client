@@ -1,55 +1,40 @@
-const NodeRSA = require('node-rsa');
 const cookie = require('cookie');
-const getRawBody = require('raw-body');
 const qs = require('qs');
-const RSAKey = new NodeRSA({b: 384});
 const mm = require('micromatch');
 const debug = require('debug')('cas');
-const { parseString } = require('xml2js');
-const { stripPrefix } = require('xml2js/lib/processors');
+
 const merge = require('./src/merge');
+const { getRawBody, parseXML, decrypt, encrypt, sendRedirect } = require('./src/utils');
 const { CasServerAgent } = require('./src/agent');
 const { PrincipalStore, Principal } = require('./src/store');
 
-const DEFAULT_COOKIE_OPTIONS = {
-	key: 'st',
-	httpOnly: true
-};
-
-exports.createCasClientHandler = function createCasClientHandler(options = {}, {
-	key, httpOnly
-} = DEFAULT_COOKIE_OPTIONS, init = () => {}) {
-	const { cas, origin, prefix, slo, ignore, path } = merge(options);
+exports.createCasClientHandler = function createCasClientHandler(options = {}) {
+	const { cas, origin, prefix, slo, ignore, path, session } = merge(options);
 	const agent = new CasServerAgent({ origin, prefix, cas, path });
 	const store = new PrincipalStore();
 	const matcher = mm.matcher(ignore);
-
-	init(agent, store);
 
 	return async function (req, res) {
 		/**
 		 * SLO
 		 */
-		if (slo.enabled && req.method === 'POST' && req.url === slo.path) {
-			const buffer = await getRawBody(req);
-			const { logoutRequest } = qs.parse(buffer.toString('utf-8'));
+		if (req.method === 'POST' && req.url === slo.path && slo.enabled) {
+			debug(`SLO request detected.`);
+			const { logoutRequest } = qs.parse(await getRawBody(req));
 
 			if (logoutRequest) {
-				await parseString(logoutRequest, {
-					explicitRoot: false,
-					tagNameProcessors: [stripPrefix]
-				}, (error, result) => {
-					if (error) {
-						return reject(error);
-					}
-					
-					store.remove(result['SessionIndex'][0]);
-				});
+				const { SessionIndex: [ticket] } = await parseXML(logoutRequest);
+				const principal = store.get(ticket);
+
+				if (principal) {
+					principal.invalidate();
+					debug(`Ticket ST=${ticket} has been invalidated with principal.`);
+				} else {
+					debug(`Principal of ticket ST=${ticket} not found when SLO.`);
+				}
 
 				return true;
-			} 
-
-			throw new Error('Bad cas SLO request.');
+			}
 		}
 
 		/**
@@ -60,27 +45,35 @@ exports.createCasClientHandler = function createCasClientHandler(options = {}, {
 		}
 
 		/**
-		 * Try to resolve st in cookie.
+		 * Try to resolve st mapped principal.
 		 */
-		const cookieMapping = cookie.parse(req.headers.cookie || '');
-		let ticketFromCookie = cookieMapping[key];
+		if (!session.enabled) {
+			const cookieTicket = cookie.parse(req.headers.cookie || '')[session.cookie.key];
+			
+			if (cookieTicket) {
+				debug(`A ticket has been found in cookie.`);
+				const ticket = decrypt(cookieTicket);
 
-		if (ticketFromCookie) {
-			try {
-				ticketFromCookie = RSAKey.decrypt(ticketFromCookie, 'utf8');
-				const principal = store.get(ticketFromCookie);
+				if (ticket) {
+					const principal = store.get(ticket);
+		
+					if (principal && principal.valid) {
+						req.principal = principal;
+						debug(`Principal has been injected to http.request by the ticket ST=${ticket}.`);
+						
+						return true;
+					} else {
+						store.remove(ticket);
+						debug(`The ticket ST=${ticket} has been destroyed.`);
 	
-				if (principal && principal.valid) {
-					req.principal = principal;
-					
-					return true;
+						res.setHeader('Set-Cookie', cookie.serialize(session.cookie.key, ''));
+					}
+				} else {
+					res.setHeader('Set-Cookie', cookie.serialize(session.cookie.key, ''));
+					debug(`The ticket ST=${ticket} decrypt failed.`);
 				}
-				
-				store.remove(ticketFromCookie);
-				res.setHeader('Set-Cookie', cookie.serialize(key, ''));
-			} catch (error) {
-				ticketFromCookie = null;
-				debug(error.message);
+			} else {
+				debug('No ticket found in cookie.');
 			}
 		}
 
@@ -91,33 +84,33 @@ exports.createCasClientHandler = function createCasClientHandler(options = {}, {
 		const ticket = requestURL.searchParams.get('ticket');
 
 		if (ticket) {
+			debug(`A new ticket recieved ST=${ticket}`);
+
 			requestURL.searchParams.delete('ticket');
 			const serviceURL = requestURL.toString();
 			const principalOptions = await agent.validateService(ticket, serviceURL);
 
 			store.put(ticket, new Principal(principalOptions));
 			
-			const encryptedTicket = RSAKey.encrypt(ticket, 'base64');
-			res.setHeader('Set-Cookie', cookie.serialize(key, encryptedTicket, {
-				httpOnly
-			}));
+			debug(`Ticket ST=${ticket} has been validated successfully.`);
 
-			res.setHeader('Location', serviceURL);
-			res.statusCode = 302;
-			res.end();
+			if (!session.enabled) {
+				const encryptedTicket = encrypt(ticket, 'base64');
+				const cookieString = cookie.serialize(session.cookie.key, encryptedTicket, session.cookie);
+				res.setHeader('Set-Cookie', cookieString);
+			}
 
-			return true;
+			sendRedirect(res, serviceURL);
 		} else {
+			debug('Redirect to cas server /login to apply a st.');
+
 			const serviceURL = requestURL.toString();
 			const redirectLocation = new URL(agent.loginPath);
 			redirectLocation.searchParams.set('service', serviceURL);
 
-			res.setHeader('Location', redirectLocation);
-			res.statusCode = 302;
-			res.end();
-
-			return false;
+			sendRedirect(res, redirectLocation);
 		}
 
+		return false;
 	}
 };

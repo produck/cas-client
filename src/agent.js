@@ -1,8 +1,7 @@
 const axios = require('axios');
-const { parseString } = require('xml2js');
-const { stripPrefix } = require('xml2js/lib/processors');
 const EventEmitter = require('events');
 const debug = require('debug')('cas:agent');
+const { parseXML } = require('./utils');
 
 class CasAgentError extends Error {}
 class CasAgentServerError extends CasAgentError {}
@@ -52,25 +51,19 @@ class CasServerAgent extends EventEmitter {
 		}
 
 		const { data } = response;
+		
 		debug('Validation response XML START:\n\n' + data);
 		debug('Validation response XML END.');
 
-		return new Promise((resolve, reject) => {
-			parseString(data, {
-				explicitRoot: false,
-				tagNameProcessors: [stripPrefix]
-			}, (error, result) => {
-				if (error) {
-					return reject(error);
-				}
+		const result = await parseXML(data);
 
-				if (result.authenticationSuccess && result.authenticationSuccess[0]) {
-					resolve(parserPrincipal(result));
-				}
+		if (result.authenticationSuccess && result.authenticationSuccess[0]) {
+			debug(`Validation success ST=${ticket}`);
 
-				throw new CasAgentAuthenticationError('Ticket error.', data);
-			});
-		});
+			return parserPrincipal(result);
+		}
+
+		throw new CasAgentAuthenticationError('Ticket error.', data);
 	}
 }
 

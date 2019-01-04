@@ -13,7 +13,6 @@
     "micromatch": "^3.1.10",
     "node-rsa": "^1.0.2",
     "qs": "^6.6.0",
-    "raw-body": "^2.3.3",
     "xml2js": "^0.4.19"
   },
   "devDependencies": {
@@ -29,8 +28,16 @@
     "url": "git+https://github.com/lemonce/cas-client.git"
   },
   "keywords": [
-    "cas", "node", "client", "apereo", "CAS3", "CAS2",
-    "cas-client", "koa", "http", "express"
+    "cas",
+    "node",
+    "client",
+    "apereo",
+    "CAS3",
+    "CAS2",
+    "cas-client",
+    "koa",
+    "http",
+    "express"
   ],
   "author": "",
   "license": "MIT",

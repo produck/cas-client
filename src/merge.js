@@ -7,6 +7,7 @@ module.exports = function mergeOptions(...optionsList) {
 		prefix = finalOptions.prefix,
 		ignore = finalOptions.ignore,
 		redirect = finalOptions.redirect,
+		session,
 		path,
 		slo
 	}) => {
@@ -46,46 +47,112 @@ module.exports = function mergeOptions(...optionsList) {
 
 			if (p3) {
 				const {
-					serviceValidate = finalOptions.path.serviceValidate,
-					proxyValidate =  finalOptions.path.proxyValidate,
+					serviceValidate = finalOptions.p3.path.serviceValidate,
+					proxyValidate =  finalOptions.p3.path.proxyValidate,
 				} = p3;
 
 				finalOptions.path.p3.serviceValidate = serviceValidate;
 				finalOptions.path.p3.proxyValidate = proxyValidate;
 			}
 		}
+
+		if (session) {
+			const {
+				enabled = finalOptions.session.enabled,
+				cookie
+			} = session;
+
+			finalOptions.session.enabled = enabled;
+
+			if (cookie) {
+				const {
+					httpOnly = finalOptions.session.cookie.httpOnly,
+					key = finalOptions.session.cookie.key
+				} = cookie;
+
+				finalOptions.session.cookie.httpOnly = httpOnly;
+				finalOptions.session.cookie.key = key;
+			}
+		}
 	});
 
-	if (!finalOptions.origin) {
-		throw new CasMiddlewareOptionsError('Origin excepted in options.');
-	}
+	validateOptions(finalOptions);
 
 	return finalOptions;
 };
 
 class CasMiddlewareOptionsError extends Error {};
 
-const validateOptions = {
+const validateOptionsRule = {
 	cas(value) {
-		if (value !== 1 || value !== 2 || value !== 3) {
-			throw new CasMiddlewareOptionsError('Invalid cas protocol version.');
+		return [1, 2, 3].indexOf(value) !== -1;
+	},
+	ignore(valueList) {
+		if (!Array.isArray(valueList)) {
+			return false;
+		}
+
+		return !valueList.find(value => !isString(value));
+	},
+	origin: isString,
+	prefix: isString,
+	redirect: isBoolean,
+	slo: {
+		enabled: isBoolean,
+		path: isString
+	},
+	path: {
+		login: isString,
+		logout: isString,
+		validate: isString,
+		serviceValidate: isString,
+		proxyValidate: isString,
+		proxy: isString,
+		p3: {
+			serviceValidate: isString,
+			proxyValidate: isString
 		}
 	},
-	prefix(value) {
-		if (!isString(value)) {
-			throw new CasMiddlewareOptionsError('Invalid cas server prefix.');
+	session: {
+		enabled: isBoolean,
+		cookie: {
+			key: isString,
+			httpOnly: isBoolean
 		}
 	}
 };
 
-function isString(value) {
-	return typeof value === 'string';
+function validateOptions(options) {
+	const nodePath = [];
+
+	function validate(ruleNode, optionsNode) {
+		Object.keys(ruleNode).forEach(item => {
+			nodePath.push(item);
+
+			const ruleValidator = ruleNode[item];
+			const optionsValue = optionsNode[item];
+
+			if (typeof ruleValidator === 'object') {
+
+				validate(ruleValidator, optionsValue);
+			} else if (!ruleValidator(optionsValue)) {
+				throw new CasMiddlewareOptionsError(`Bad value at options.${nodePath.join('.')}`);
+			}
+
+			nodePath.pop();
+		});
+	}
+
+	validate(validateOptionsRule, options);
+
+	return true;
 }
 
 function DefaultOptionsFactory() {
 	return {
 		cas: 3,
 		prefix: '',
+		redirect: false,
 		slo: {
 			enabled: true,
 			path: '/'
@@ -102,7 +169,21 @@ function DefaultOptionsFactory() {
 				proxyValidate: '/p3/proxyValidate',
 			}
 		},
+		session: {
+			enabled: false,
+			cookie: {
+				key: 'st',
+				httpOnly: true,
+			}
+		},
 		ignore: ['**/*.ico', '**/*.js', '**/*.css'],
-		redirect: false
 	};
+}
+
+function isBoolean(value) {
+	return typeof value === 'boolean';
+}
+
+function isString(value) {
+	return typeof value === 'string';
 }
