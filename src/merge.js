@@ -119,6 +119,12 @@ const validateOptionsRule = {
 			key: isString,
 			httpOnly: isBoolean
 		}
+	},
+	proxy: {
+		enabled: isBoolean,
+		pgt: {
+			callbackURL: isString
+		}
 	}
 };
 
@@ -177,6 +183,12 @@ function DefaultOptionsFactory() {
 			}
 		},
 		ignore: ['**/*.ico', '**/*.js', '**/*.css'],
+		proxy: {
+			enabled: true,
+			pgt: {
+				callbackURL: '/pgtCalllbackURL'
+			}
+		}
 	};
 }
 

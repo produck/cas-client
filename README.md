@@ -126,7 +126,9 @@ const defaultOptions = {
 		enabled: true, // Use SLO?
 		path: '/' // The path whitch logoutRequest request to from CAS Server.
 	},
-	path: { // CAS Server URIs.
+	// CAS Server URIs. Normally no change is required.
+	// Useful when use a nonstandard cas server or url re-writed.
+	path: {
 		login: '/login',
 		logout: '/logout',
 		validate: '/validate',
@@ -177,6 +179,22 @@ You can also override all items of options for your special cas server. And use 
 ```js
 const casClientHandler = httpCasClient(options1, options2, ...);
 ```
+### Middleware Wrap for Frameworks
+Koa2 without session
+```js
+```
+Express without session
+```js
+```
+
+Koa2 with session
+```js
+```
+
+Express with session
+```js
+```
+
 ### Store
 Store is an event emitter.
 #### Method

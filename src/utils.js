@@ -1,6 +1,14 @@
 const http = require('http');
 
-exports.request = function request(url) {
+exports.request = function request(url, queryMapping = {}) {
+	const queryString = Object.keys(queryMapping).map(key => {
+		return `${key}=${encodeURIComponent(queryMapping[key])}`;
+	}).join('&');
+
+	if (queryString) {
+		url += `?${queryString}`;
+	}
+
 	return new Promise((resolve, reject) => {
 		http.get(url, res => {
 			const { statusCode } = res;
@@ -50,19 +58,4 @@ exports.sendRedirect = function sendRedirect(response, url) {
 	response.setHeader('Location', url);
 	response.statusCode = 302;
 	response.end();
-};
-
-const NodeRSA = require('node-rsa');
-const RSAKey = new NodeRSA({b: 384});
-
-exports.encrypt = function encrypt(plaintext) {
-	return RSAKey.encrypt(plaintext, 'base64');
-};
-
-exports.decrypt = function decrypt(ciphertext) {
-	try {
-		return RSAKey.decrypt(ciphertext, 'utf8');
-	} catch (error) {
-		return null;
-	}
 };

@@ -28,10 +28,11 @@ class PrincipalStore extends EventEmitter {
 }
 
 class Principal {
-	constructor({ user, attributes }) {
+	constructor({ user, attributes, pgt = null }) {
 		this.valid = true;
 		this.user = user;
 		this.attributes = attributes;
+		this.pgt = pgt;
 	}
 
 	invalidate() {

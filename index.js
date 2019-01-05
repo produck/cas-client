@@ -4,17 +4,26 @@ const mm = require('micromatch');
 const debug = require('debug')('cas');
 
 const merge = require('./src/merge');
-const { getRawBody, parseXML, decrypt, encrypt, sendRedirect } = require('./src/utils');
+const { getRawBody, parseXML, sendRedirect } = require('./src/utils');
 const { CasServerAgent } = require('./src/agent');
 const { PrincipalStore, Principal } = require('./src/store');
 
 module.exports = function createCasClientHandler(...options) {
-	const { cas, origin, prefix, slo, ignore, path, session } = merge(...options);
-	const agent = new CasServerAgent({ origin, prefix, cas, path });
+	const { cas, origin, prefix, slo, ignore, path, session, proxy } = merge(...options);
+	const agent = new CasServerAgent({ origin, prefix, cas, path, proxy });
 	const store = new PrincipalStore();
 	const matcher = mm.matcher(ignore);
 
 	return async function (req, res) {
+		req.cas = { agent, store };
+
+		/**
+		 * Ignore
+		 */
+		if (matcher(req.url, ignore)) {
+			return true;
+		}
+
 		/**
 		 * SLO
 		 */
@@ -33,44 +42,49 @@ module.exports = function createCasClientHandler(...options) {
 					debug(`Principal of ticket ST=${ticket} not found when SLO.`);
 				}
 
-				return true;
+				return false;
 			}
 		}
 
 		/**
-		 * Ignore
+		 * PGT callbak
 		 */
-		if (matcher(req.url, ignore)) {
-			return true;
+		if (proxy.enabled && req.method === 'GET' && req.url.indexOf(agent.proxy.pgt.callbackURL) === 0) {
+			if (req.url === agent.proxy.pgt.callbackURL) {
+				debug('PGT 1st callback detected and respond to cas server status 200.');
+			} else {
+				const { pgtIou, pgtId } = qs.parse(req.url.replace(agent.proxy.pgt.callbackURL + '?', ''));
+				agent.pushPgtiou(pgtIou, pgtId);
+
+				debug('PGT 2ed callback detected and set pgt mapping.');
+			}
+
+			res.statusCode = 200;
+			res.end();
+
+			return false;
 		}
 
 		/**
 		 * Try to resolve st mapped principal.
 		 */
 		if (!session.enabled) {
-			const cookieTicket = cookie.parse(req.headers.cookie || '')[session.cookie.key];
+			const ticket = cookie.parse(req.headers.cookie || '')[session.cookie.key];
 			
-			if (cookieTicket) {
+			if (ticket) {
 				debug(`A ticket has been found in cookie.`);
-				const ticket = decrypt(cookieTicket);
-
-				if (ticket) {
-					const principal = store.get(ticket);
-		
-					if (principal && principal.valid) {
-						req.principal = principal;
-						debug(`Principal has been injected to http.request by the ticket ST=${ticket}.`);
-						
-						return true;
-					} else {
-						store.remove(ticket);
-						debug(`The ticket ST=${ticket} has been destroyed.`);
+				const principal = store.get(ticket);
 	
-						res.setHeader('Set-Cookie', cookie.serialize(session.cookie.key, ''));
-					}
+				if (principal && principal.valid) {
+					req.principal = principal;
+					debug(`Principal has been injected to http.request by the ticket ST=${ticket}.`);
+					
+					return true;
 				} else {
+					store.remove(ticket);
+					debug(`The ticket ST=${ticket} has been destroyed.`);
+
 					res.setHeader('Set-Cookie', cookie.serialize(session.cookie.key, ''));
-					debug(`The ticket ST=${ticket} decrypt failed.`);
 				}
 			} else {
 				debug('No ticket found in cookie.');
@@ -87,20 +101,18 @@ module.exports = function createCasClientHandler(...options) {
 			debug(`A new ticket recieved ST=${ticket}`);
 
 			requestURL.searchParams.delete('ticket');
-			const serviceURL = requestURL.toString();
-			const principalOptions = await agent.validateService(ticket, serviceURL);
+			const principalOptions = await agent.validateService(ticket, requestURL);
 
 			store.put(ticket, new Principal(principalOptions));
 			
 			debug(`Ticket ST=${ticket} has been validated successfully.`);
 
 			if (!session.enabled) {
-				const encryptedTicket = encrypt(ticket, 'base64');
-				const cookieString = cookie.serialize(session.cookie.key, encryptedTicket, session.cookie);
+				const cookieString = cookie.serialize(session.cookie.key, ticket, session.cookie);
 				res.setHeader('Set-Cookie', cookieString);
 			}
 
-			sendRedirect(res, serviceURL);
+			sendRedirect(res, requestURL.toString());
 		} else {
 			debug('Redirect to cas server /login to apply a st.');
 

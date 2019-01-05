@@ -2,8 +2,9 @@ const EventEmitter = require('events');
 const debug = require('debug')('cas:agent');
 const { parseXML, request } = require('./utils');
 
+const PGTIOU_TIMEOUT = 10000;
+
 class CasAgentError extends Error {}
-class CasAgentServerError extends CasAgentError {}
 class CasAgentAuthenticationError extends CasAgentError {
 	constructor(message, xml) {
 		super(message);
@@ -13,7 +14,7 @@ class CasAgentAuthenticationError extends CasAgentError {
 }
 
 class CasServerAgent extends EventEmitter {
-	constructor({ origin, prefix, cas, path }) {
+	constructor({ origin, prefix, cas, path, proxy }) {
 		super();
 
 		const { host, port } = new URL(origin);
@@ -24,6 +25,37 @@ class CasServerAgent extends EventEmitter {
 		this.host = host;
 		this.prefix = prefix;
 		this.port = port;
+		this.proxy = proxy;
+		
+		const pgtiouStore = this.pgtiouStore = {};
+
+		setInterval(() => {
+			const now = Date.now();
+
+			Object.keys(pgtiouStore).forEach(pgtiou => {
+				if (now > pgtiouStore[pgtiou].expired) {
+					delete pgtiouStore[pgtiou];
+				}
+			});
+		}, PGTIOU_TIMEOUT);
+	}
+
+	getPgtByPgtiou(pgtIou) {
+		const pgtWrap = this.pgtiouStore[pgtIou];
+
+		if (pgtWrap) {
+			delete this.pgtiouStore[pgtIou];
+			
+			return pgtWrap.pgt;
+		}
+
+		throw new CasAgentAuthenticationError('No pgt matched.');
+	}
+
+	pushPgtiou(pgtIou, pgt) {
+		this.pgtiouStore[pgtIou] = {
+			pgt, expired: Date.now() + PGTIOU_TIMEOUT
+		};
 	}
 
 	get validatePath() {
@@ -36,27 +68,50 @@ class CasServerAgent extends EventEmitter {
 		return new URL(`${this.prefix}${this.path.login}`, this.origin).toString();
 	}
 
-	async validateService(ticket, service) {
-		try {
-			var data = await request(`${this.origin}${this.prefix}${this.validatePath}?` +
-				`ticket=${encodeURIComponent(ticket)}&service=${encodeURIComponent(service)}`);
+	async $parserPrincipal(data) {
+		const result = await parseXML(data);
+		const { authenticationSuccess } = result;
 
-		} catch (error) {
-			throw new CasAgentServerError('CAS server can NOT be connected.');
+		if (!authenticationSuccess || !authenticationSuccess[0]) {
+			throw new CasAgentAuthenticationError('Ticket error authentication failed.');
 		}
+
+		const { user, attributes, proxyGrantingTicket } = authenticationSuccess[0];
+	
+		const principal = {
+			user: user[0]
+		};
+	
+		if (this.cas === 3) {
+			principal.attributes = attributes && attributes[0];
+		}
+	
+		if (this.proxy.enabled) {
+			const pgt = this.getPgtByPgtiou(proxyGrantingTicket[0]);
+
+			principal.pgt = pgt;
+		}
+	
+		return principal;
+	}
+
+	async validateService(ticket, serviceURL) {
+		const data = await request(`${this.origin}${this.prefix}${this.validatePath}`, {
+			ticket, 
+			service: serviceURL,
+			pgtUrl: `${serviceURL.origin}${this.proxy.pgt.callbackURL}`
+		});
 
 		debug('Validation response XML START:\n\n' + data);
 		debug('Validation response XML END.');
 
-		const result = await parseXML(data);
+		const principal = await this.$parserPrincipal(data);
+		
+		debug(`Validation success ST=${ticket}`);
 
-		if (result.authenticationSuccess && result.authenticationSuccess[0]) {
-			debug(`Validation success ST=${ticket}`);
+		console.log(principal)
 
-			return parserPrincipal(result);
-		}
-
-		throw new CasAgentAuthenticationError('Ticket error.', data);
+		return principal;
 	}
 }
 
@@ -65,13 +120,3 @@ module.exports = {
 	CasAgentError,
 	CasAgentAuthenticationError
 };
-
-function parserPrincipal(authenticationSuccessResult) {
-	const { authenticationSuccess } = authenticationSuccessResult;
-	const { user, attributes } = authenticationSuccess[0];
-
-	return {
-		user: user[0],
-		attributes: attributes && attributes[0]
-	};
-}
