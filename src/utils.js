@@ -13,15 +13,19 @@ exports.request = function request(url, queryMapping = {}) {
 		http.get(url, res => {
 			const { statusCode } = res;
 	
-			if (res.statusCode !== 200) {
+			if (res.statusCode !== 200 && res.statusCode !== 302) {
 				res.resume();
 				return reject (new Error(`Request Failed.\nStatus Code: ${statusCode}`));
 			}
 			
-			let rawData = '';
+			let data = '';
 			res.setEncoding('utf8');
-			res.on('data', (chunk) => { rawData += chunk; });
-			res.on('end', () => resolve(rawData));
+			res.on('data', (chunk) => { data += chunk; });
+			res.on('end', () => resolve({
+				data,
+				headers: res.headers,
+				status: res.statusCode
+			}));
 		}).on('error', error => reject(error));
 	});
 };

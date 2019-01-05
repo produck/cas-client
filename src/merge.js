@@ -9,7 +9,8 @@ module.exports = function mergeOptions(...optionsList) {
 		redirect = finalOptions.redirect,
 		session,
 		path,
-		slo
+		slo,
+		proxy
 	}) => {
 		finalOptions.origin = origin;
 		finalOptions.cas = cas;
@@ -73,6 +74,24 @@ module.exports = function mergeOptions(...optionsList) {
 				finalOptions.session.cookie.httpOnly = httpOnly;
 				finalOptions.session.cookie.key = key;
 			}
+		}
+
+		if (proxy) {
+			const {
+				enabled = finalOptions.session.enabled,
+				pgt
+			} = proxy;
+
+			finalOptions.proxy.enabled = enabled;
+
+			if (pgt) {
+				const {
+					callbackURL = finalOptions.proxy.pgt.callbackURL
+				} = pgt;
+
+				finalOptions.proxy.pgt.callbackURL = callbackURL;
+			}
+
 		}
 	});
 

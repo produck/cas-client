@@ -6,12 +6,12 @@ const debug = require('debug')('cas');
 const merge = require('./src/merge');
 const { getRawBody, parseXML, sendRedirect } = require('./src/utils');
 const { CasServerAgent } = require('./src/agent');
-const { PrincipalStore, Principal } = require('./src/store');
+const { ServiceTicketStore } = require('./src/store');
 
 module.exports = function createCasClientHandler(...options) {
 	const { cas, origin, prefix, slo, ignore, path, session, proxy } = merge(...options);
 	const agent = new CasServerAgent({ origin, prefix, cas, path, proxy });
-	const store = new PrincipalStore();
+	const store = new ServiceTicketStore(agent);
 	const matcher = mm.matcher(ignore);
 
 	return async function (req, res) {
@@ -33,10 +33,10 @@ module.exports = function createCasClientHandler(...options) {
 
 			if (logoutRequest) {
 				const { SessionIndex: [ticket] } = await parseXML(logoutRequest);
-				const principal = store.get(ticket);
+				const serviceTicket = store.get(ticket);
 
-				if (principal) {
-					principal.invalidate();
+				if (serviceTicket) {
+					serviceTicket.invalidate();
 					debug(`Ticket ST=${ticket} has been invalidated with principal.`);
 				} else {
 					debug(`Principal of ticket ST=${ticket} not found when SLO.`);
@@ -73,10 +73,11 @@ module.exports = function createCasClientHandler(...options) {
 			
 			if (ticket) {
 				debug(`A ticket has been found in cookie.`);
-				const principal = store.get(ticket);
+				const serviceTicket = store.get(ticket);
 	
-				if (principal && principal.valid) {
-					req.principal = principal;
+				if (serviceTicket && serviceTicket.valid) {
+					req.cas.st = serviceTicket;
+					req.principal = serviceTicket.principal;
 					debug(`Principal has been injected to http.request by the ticket ST=${ticket}.`);
 					
 					return true;
@@ -101,9 +102,9 @@ module.exports = function createCasClientHandler(...options) {
 			debug(`A new ticket recieved ST=${ticket}`);
 
 			requestURL.searchParams.delete('ticket');
-			const principalOptions = await agent.validateService(ticket, requestURL);
+			const serviceTicketOptions = await agent.validateService(ticket, requestURL);
 
-			store.put(ticket, new Principal(principalOptions));
+			store.put(ticket, serviceTicketOptions);
 			
 			debug(`Ticket ST=${ticket} has been validated successfully.`);
 
@@ -112,7 +113,7 @@ module.exports = function createCasClientHandler(...options) {
 				res.setHeader('Set-Cookie', cookieString);
 			}
 
-			sendRedirect(res, requestURL.toString());
+			sendRedirect(res, requestURL);
 		} else {
 			debug('Redirect to cas server /login to apply a st.');
 
