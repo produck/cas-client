@@ -9,8 +9,8 @@ const { CasServerAgent } = require('./src/agent');
 const { ServiceTicketStore } = require('./src/store');
 
 module.exports = function createCasClientHandler(...options) {
-	const { cas, origin, prefix, slo, ignore, path, proxy } = merge(...options);
-	const agent = new CasServerAgent({ origin, prefix, cas, path, proxy });
+	const { cas, origin, prefix, slo, ignore, path, proxy, renew, gateway } = merge(...options);
+	const agent = new CasServerAgent({ origin, prefix, cas, path, proxy, renew, gateway });
 	const store = new ServiceTicketStore(agent);
 	const matcher = mm.matcher(ignore);
 
@@ -116,11 +116,21 @@ module.exports = function createCasClientHandler(...options) {
 			store.put(newTicket, serviceTicketOptions);
 			
 			await ticketCreated(newTicket);
+			requestURL.searchParams.delete('_g');
 
 			sendRedirect(res, requestURL);
 		} else {
 			// Access is unauthenticated.
+			if (requestURL.searchParams.get('_g') === '1') {
+				res.statusCode = 403;
+
+				return false;
+			}
+
 			debug('Access is unauthenticated and redirect to cas server "/login".');
+			if (gateway) {
+				requestURL.searchParams.set('_g', 1);
+			}
 
 			const redirectLocation = new URL(agent.loginPath);
 			redirectLocation.searchParams.set('service', requestURL);

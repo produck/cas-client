@@ -4,7 +4,7 @@ A complete implement of CAS Client middleware for Node.js, support CAS 1.0, 2.0+
 
 CAS(Central Authentication Service) is a single-sign-on / single-sign-off protocol for the web.
 
-We suppose you are already familiar with the CAS protocol, if not, please read this [document](https://github.com/apereo/cas/blob/master/cas-server-documentation/protocol/CAS-Protocol-Specification.md) before you use this.
+We suppose you are already familiar with the CAS protocol, if not, please read this [document](https://apereo.github.io/cas/6.0.x/protocol/CAS-Protocol.html) before you use this.
 
 ## Installation
 

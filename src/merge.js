@@ -5,8 +5,9 @@ module.exports = function mergeOptions(...optionsList) {
 		origin = finalOptions.origin,
 		cas = finalOptions.cas,
 		prefix = finalOptions.prefix,
+		renew = finalOptions.renew,
+		gateway = finalOptions.gateway,
 		ignore = finalOptions.ignore,
-		redirect = finalOptions.redirect,
 		path,
 		slo,
 		proxy
@@ -15,7 +16,8 @@ module.exports = function mergeOptions(...optionsList) {
 		finalOptions.cas = cas;
 		finalOptions.prefix = prefix;
 		finalOptions.ignore = ignore;
-		finalOptions.redirect = redirect;
+		finalOptions.renew = renew;
+		finalOptions.gateway = gateway;
 		
 		if (slo) {
 			const {
@@ -77,6 +79,12 @@ module.exports = function mergeOptions(...optionsList) {
 
 	validateOptions(finalOptions);
 
+	const { renew, gateway } = finalOptions;
+
+	if (renew && gateway) {
+		throw new Error('In options gateway & renew can not be true at same time.')
+	}
+
 	return finalOptions;
 };
 
@@ -95,7 +103,8 @@ const validateOptionsRule = {
 	},
 	origin: isString,
 	prefix: isString,
-	redirect: isBoolean,
+	renew: isBoolean,
+	gateway: isBoolean,
 	slo: {
 		enabled: isBoolean,
 		path: isString
@@ -150,7 +159,8 @@ function DefaultOptionsFactory() {
 	return {
 		cas: 3,
 		prefix: '/',
-		redirect: false,
+		renew: false,
+		gateway: false,
 		slo: {
 			enabled: true,
 			path: '/'

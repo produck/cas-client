@@ -9,7 +9,10 @@ const http = require('http');
 const origin = 'http://localhost:9000';
 const prefix = '/cas';
 
-const handler = createCasClientHandler({ origin, prefix });
+const handler = createCasClientHandler({
+	origin, prefix,
+	// gateway: true
+});
 
 http.createServer(async (req, res) => {
 	if(!await handler(req, res)) {
@@ -17,13 +20,16 @@ http.createServer(async (req, res) => {
 	}
 
 	const { principal, ticket } = req;
-	console.log(principal, ticket);
+	// console.log(principal, ticket);
 	res.end('hello world');
 }).listen(1000);
 
 const app = new Koa();
 app.keys = ['koa-app'];
-app.use(session(app)).use(koaSessionCasClient({ origin, prefix })).use((ctx, next) => {
+app.use(session(app)).use(koaSessionCasClient({
+	origin, prefix,
+	renew: true
+})).use((ctx, next) => {
 	if (ctx.request.path === '/app') {
 		return next();
 	}

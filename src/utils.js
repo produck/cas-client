@@ -1,16 +1,14 @@
 const http = require('http');
 
 exports.request = function request(url, queryMapping = {}) {
-	const queryString = Object.keys(queryMapping).map(key => {
-		return `${key}=${encodeURIComponent(queryMapping[key])}`;
-	}).join('&');
+	const resolvedURL = new URL(url);
 
-	if (queryString) {
-		url += `?${queryString}`;
-	}
+	Object.keys(queryMapping).forEach(key => {
+		resolvedURL.searchParams.set(key, queryMapping[key])
+	});
 
 	return new Promise((resolve, reject) => {
-		http.get(url, res => {
+		http.get(resolvedURL, res => {
 			const { statusCode } = res;
 	
 			if (res.statusCode !== 200 && res.statusCode !== 302) {

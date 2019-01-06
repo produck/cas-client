@@ -19,7 +19,7 @@ const ticketTypeValidateMapping = {
 };
 
 class CasServerAgent extends EventEmitter {
-	constructor({ origin, prefix, cas, path, proxy }) {
+	constructor({ origin, prefix, cas, path, proxy, renew, gateway }) {
 		super();
 
 		const { host, port } = new URL(origin);
@@ -31,6 +31,8 @@ class CasServerAgent extends EventEmitter {
 		this.prefix = prefix;
 		this.port = port;
 		this.proxy = proxy;
+		this.renew = renew;
+		this.gateway = gateway;
 		
 		const pgtiouStore = this.pgtiouStore = {};
 
@@ -77,11 +79,21 @@ class CasServerAgent extends EventEmitter {
 	}
 
 	get loginPath() {
-		return new URL(`${this.prefix}${this.path.login}`, this.origin).toString();
+		const url = new URL(`${this.prefix}${this.path.login}`, this.origin);
+
+		if (this.renew) {
+			url.searchParams.set('renew', true);
+		}
+
+		if (this.gateway) {
+			url.searchParams.set('gateway', true);
+		}
+
+		return url;
 	}
 
 	get proxyPath() {
-		return new URL(`${this.prefix}${this.path.proxy}`, this.origin).toString();
+		return new URL(`${this.prefix}${this.path.proxy}`, this.origin);
 	}
 
 	async $parserPrincipal(data) {
@@ -122,6 +134,10 @@ class CasServerAgent extends EventEmitter {
 			service: serviceURL,
 			pgtUrl: `${serviceURL.origin}${this.proxy.pgt.callbackURL}`
 		};
+
+		if (this.renew) {
+			searchParams.renew = true;
+		}
 
 		const { data } = await request(`${this.origin}${this.prefix}${validatePath}`, searchParams);
 
