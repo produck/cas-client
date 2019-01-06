@@ -1,23 +1,29 @@
-const httpCasClient = require('../..');
+const createCasClientHandler = require('../..');
 const presets = require('../../presets/apereo');
+const koaSessionCasClient = require('../../wrap/koa2-session');
+const koaCasClient = require('../../wrap/koa2');
 const Koa = require('koa');
-const app = new Koa();
+const session = require('koa-session');
+const http = require('http');
 
 const origin = 'http://localhost:9000';
 const prefix = '/cas';
 
-const casProxyClientHandler = httpCasClient({ origin, prefix });
+const handler = createCasClientHandler({ origin, prefix });
 
-app.use(async (ctx, next) => {
-	// This is a middleware may be very abstract.
-	// Ensuring need to continue then call next().
-	if(await casProxyClientHandler(ctx.req, ctx.res)) {
-		ctx.principal = ctx.request.principal = ctx.req.principal;
-		ctx.cas = ctx.request.cas = ctx.req.cas;
-
-		return next();
+http.createServer(async (req, res) => {
+	if(!await handler(req, res)) {
+		return res.end();
 	}
-}).use((ctx, next) => {
+
+	const { principal, ticket } = req;
+	console.log(principal, ticket);
+	res.end('hello world');
+}).listen(1000);
+
+const app = new Koa();
+app.keys = ['koa-app'];
+app.use(session(app)).use(koaSessionCasClient({ origin, prefix })).use((ctx, next) => {
 	if (ctx.request.path === '/app') {
 		return next();
 	}
@@ -30,37 +36,29 @@ app.use(async (ctx, next) => {
 	ctx.body += JSON.stringify(principal, null, 2);
 	ctx.body += '</pre>'
 }).use(async ctx => {
-	const { st } = ctx.cas;
+	const { ticket } = ctx;
 
-	const response = await st.request('http://127.0.0.1:3000/');
+	const response = await ticket.request('http://127.0.0.1:3000/');
 
 	ctx.body = response.data;
 }).listen(2000);
 
-
-const casAppClientHandler = httpCasClient({ origin, prefix, proxy: {
-	enabled: false,
-	pgt: {
-		callbackURL: 'proxyCallback'
-	}
-} });
-
 const app2 = new Koa();
-app2.use(async (ctx, next) => {
-	// This is a middleware may be very abstract.
-	// Ensuring need to continue then call next().
-	if(await casAppClientHandler(ctx.req, ctx.res)) {
-		ctx.principal = ctx.request.principal = ctx.req.principal;
-		ctx.cas = ctx.request.cas = ctx.req.cas;
+app2.use(koaCasClient({ origin, prefix })).use(async ctx => {
+	const { principal, ticket } = ctx;
 
-		return next();
-	}
-}).use(ctx => {
-	const principal = ctx.principal;
+	const response = await ticket.request('http://127.0.0.1:4000/');
 
 	// your statements...
 	ctx.body = `<p>This is App</p>`;
 	ctx.body += `<a href="${origin}${prefix}/logout">SLO</a><pre>`;
 	ctx.body += JSON.stringify(principal, null, 2);
-	ctx.body += '</pre>'
+	ctx.body += '</pre>';
+	ctx.body += response.data;
 }).listen(3000);
+
+const app3 = new Koa();
+app3.use(koaCasClient({ origin, prefix })).use(async ctx => {
+	// your statements...
+	ctx.body = 'from the proxy proxy app.'
+}).listen(4000);

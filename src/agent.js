@@ -113,17 +113,15 @@ class CasServerAgent extends EventEmitter {
 	}
 
 	async validateService(ticket, serviceURL) {
+		
 		const ticketType = ticket.substr(0, 2);
 		const validatePath = this[ticketTypeValidateMapping[ticketType] + 'ValidatePath'];
 
 		const searchParams = {
 			ticket, 
 			service: serviceURL,
+			pgtUrl: `${serviceURL.origin}${this.proxy.pgt.callbackURL}`
 		};
-
-		if (ticketType === 'ST') {
-			searchParams.pgtUrl = `${serviceURL.origin}${this.proxy.pgt.callbackURL}`;
-		}
 
 		const { data } = await request(`${this.origin}${this.prefix}${validatePath}`, searchParams);
 

@@ -9,12 +9,22 @@ const { CasServerAgent } = require('./src/agent');
 const { ServiceTicketStore } = require('./src/store');
 
 module.exports = function createCasClientHandler(...options) {
-	const { cas, origin, prefix, slo, ignore, path, session, proxy } = merge(...options);
+	const { cas, origin, prefix, slo, ignore, path, proxy } = merge(...options);
 	const agent = new CasServerAgent({ origin, prefix, cas, path, proxy });
 	const store = new ServiceTicketStore(agent);
 	const matcher = mm.matcher(ignore);
 
-	return async function (req, res) {
+	return async function (req, res, {
+		getTicket = function () {
+			return cookie.parse(req.headers.cookie || '').st;
+		},
+		ticketCreated = function (ticketId) {
+			res.setHeader('Set-Cookie', cookie.serialize('st', ticketId, { httpOnly: true }));
+		},
+		ticketDestroyed = function () {
+			res.setHeader('Set-Cookie', cookie.serialize('st', ''));
+		}
+	} = {}) {
 		req.cas = { agent, store };
 
 		/**
@@ -68,58 +78,52 @@ module.exports = function createCasClientHandler(...options) {
 		/**
 		 * Try to resolve st mapped principal.
 		 */
-		if (!session.enabled) {
-			const ticket = cookie.parse(req.headers.cookie || '')[session.cookie.key];
-			
-			if (ticket) {
-				debug(`A ticket has been found in cookie.`);
-				const serviceTicket = store.get(ticket);
-	
-				if (serviceTicket && serviceTicket.valid) {
-					req.cas.st = serviceTicket;
-					req.principal = serviceTicket.principal;
-					debug(`Principal has been injected to http.request by the ticket ST=${ticket}.`);
-					
-					return true;
-				} else {
-					store.remove(ticket);
-					debug(`The ticket ST=${ticket} has been destroyed.`);
+		const ticket = await getTicket();
+		
+		if (ticket) {
+			debug(`A ticket has been found in cookie.`);
+			const serviceTicket = store.get(ticket);
 
-					res.setHeader('Set-Cookie', cookie.serialize(session.cookie.key, ''));
-				}
+			if (serviceTicket && serviceTicket.valid) {
+				req.ticket = serviceTicket;
+				req.principal = serviceTicket.principal;
+				debug(`Principal has been injected to http.request by the ticket ST=${ticket}.`);
+				
+				return true;
 			} else {
-				debug('No ticket found in cookie.');
+				store.remove(ticket);
+				debug(`The ticket ST=${ticket} has been destroyed.`);
+
+				await ticketDestroyed(ticket);
 			}
+		} else {
+			debug('No ticket found.');
 		}
 
 		/**
 		 * NO valid st in cookie, try to sso.
 		 */
 		const requestURL = new URL(`http://${req.headers.host}${req.url}`);
-		const ticket = requestURL.searchParams.get('ticket');
+		const newTicket = requestURL.searchParams.get('ticket');
 
-		if (ticket) {
-			debug(`A new ticket recieved ST=${ticket}`);
+		if (newTicket) {
+			debug(`A new ticket recieved ST=${newTicket}`);
 
 			requestURL.searchParams.delete('ticket');
-			const serviceTicketOptions = await agent.validateService(ticket, requestURL);
-
-			store.put(ticket, serviceTicketOptions);
+			const serviceTicketOptions = await agent.validateService(newTicket, requestURL);
 			
-			debug(`Ticket ST=${ticket} has been validated successfully.`);
-
-			if (!session.enabled) {
-				const cookieString = cookie.serialize(session.cookie.key, ticket, session.cookie);
-				res.setHeader('Set-Cookie', cookieString);
-			}
+			debug(`Ticket ST=${newTicket} has been validated successfully.`);
+			store.put(newTicket, serviceTicketOptions);
+			
+			await ticketCreated(newTicket);
 
 			sendRedirect(res, requestURL);
 		} else {
-			debug('Redirect to cas server /login to apply a st.');
+			// Access is unauthenticated.
+			debug('Access is unauthenticated and redirect to cas server "/login".');
 
-			const serviceURL = requestURL.toString();
 			const redirectLocation = new URL(agent.loginPath);
-			redirectLocation.searchParams.set('service', serviceURL);
+			redirectLocation.searchParams.set('service', requestURL);
 
 			sendRedirect(res, redirectLocation);
 		}

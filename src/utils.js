@@ -61,5 +61,4 @@ exports.parseXML = function parseXML(xmlString) {
 exports.sendRedirect = function sendRedirect(response, url) {
 	response.setHeader('Location', url);
 	response.statusCode = 302;
-	response.end();
 };

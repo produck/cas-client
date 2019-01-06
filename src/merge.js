@@ -7,7 +7,6 @@ module.exports = function mergeOptions(...optionsList) {
 		prefix = finalOptions.prefix,
 		ignore = finalOptions.ignore,
 		redirect = finalOptions.redirect,
-		session,
 		path,
 		slo,
 		proxy
@@ -54,25 +53,6 @@ module.exports = function mergeOptions(...optionsList) {
 
 				finalOptions.path.p3.serviceValidate = serviceValidate;
 				finalOptions.path.p3.proxyValidate = proxyValidate;
-			}
-		}
-
-		if (session) {
-			const {
-				enabled = finalOptions.session.enabled,
-				cookie
-			} = session;
-
-			finalOptions.session.enabled = enabled;
-
-			if (cookie) {
-				const {
-					httpOnly = finalOptions.session.cookie.httpOnly,
-					key = finalOptions.session.cookie.key
-				} = cookie;
-
-				finalOptions.session.cookie.httpOnly = httpOnly;
-				finalOptions.session.cookie.key = key;
 			}
 		}
 
@@ -130,13 +110,6 @@ const validateOptionsRule = {
 		p3: {
 			serviceValidate: isString,
 			proxyValidate: isString
-		}
-	},
-	session: {
-		enabled: isBoolean,
-		cookie: {
-			key: isString,
-			httpOnly: isBoolean
 		}
 	},
 	proxy: {
