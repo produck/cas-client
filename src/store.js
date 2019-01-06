@@ -1,6 +1,7 @@
 const EventEmitter = require('events');
 const http = require('http');
 const { request, parseXML } = require('./utils');
+const debug = require('debug')('cas:store');
 
 class ServiceTicketStore extends EventEmitter {
 	constructor(agent) {

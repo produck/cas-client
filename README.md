@@ -187,7 +187,7 @@ const defaultOptions = {
 	proxy: {
 		enabled: true, // CAS client use proxy feature or not.
 		pgt: {
-			callbackURL: 'pgtCalllbackURL' // The path use for cas server sending pgt & pgtIou
+			callbackURL: '/pgtCalllbackURL' // The path use for cas server sending pgt & pgtIou
 		}
 	}
 }
@@ -229,6 +229,12 @@ Store is an event emitter.
 
 #### Event
 //TODO
+
+## CAS Client Cluster
+### Shared Ticket Store
+### Sync ST store
+#### In Frontend
+#### In Backend
 
 ## Debug
 Because CAS protocol is complicated, we remove this option. We recommend you to always log every step that what CAS client do on your production environment.

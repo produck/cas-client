@@ -1,4 +1,4 @@
-const createCasClientHandler = require('..');
+const createCasClientHandler = require('../');
 
 module.exports = function createCasClientKoaMiddleware(...options) {
 	const handler = createCasClientHandler(...options);
@@ -10,5 +10,5 @@ module.exports = function createCasClientKoaMiddleware(...options) {
 	
 			return next();
 		}
-	}
-}
+	};
+};

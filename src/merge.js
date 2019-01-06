@@ -80,7 +80,7 @@ module.exports = function mergeOptions(...optionsList) {
 	return finalOptions;
 };
 
-class CasMiddlewareOptionsError extends Error {};
+class CasMiddlewareOptionsError extends Error {}
 
 const validateOptionsRule = {
 	cas(value) {

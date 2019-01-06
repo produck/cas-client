@@ -38,7 +38,7 @@ module.exports = function createCasClientHandler(...options) {
 		 * SLO
 		 */
 		if (req.method === 'POST' && req.url === slo.path && slo.enabled) {
-			debug(`SLO request detected.`);
+			debug('SLO request detected.');
 			const { logoutRequest } = qs.parse(await getRawBody(req));
 
 			if (logoutRequest) {
@@ -81,7 +81,7 @@ module.exports = function createCasClientHandler(...options) {
 		const ticket = await getTicket();
 		
 		if (ticket) {
-			debug(`A ticket has been found in cookie.`);
+			debug(`A ticket has been found ST=${ticket}.`);
 			const serviceTicket = store.get(ticket);
 
 			if (serviceTicket && serviceTicket.valid) {
@@ -129,5 +129,5 @@ module.exports = function createCasClientHandler(...options) {
 		}
 
 		return false;
-	}
+	};
 };

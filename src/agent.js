@@ -16,7 +16,7 @@ class CasAgentAuthenticationError extends CasAgentError {
 const ticketTypeValidateMapping = {
 	PT: 'proxy',
 	ST: 'service'
-}
+};
 
 class CasServerAgent extends EventEmitter {
 	constructor({ origin, prefix, cas, path, proxy }) {
