@@ -28,10 +28,11 @@ module.exports = function createCasClientHandler(...options) {
 		},
 		ticketDestroyed = function () {
 			res.setHeader('Set-Cookie', cookie.serialize('st', '', cookieOptions));
+		},
+		bodyParser = async function () {
+			return qs.parse(await getRawBody(req));
 		}
 	} = {}) {
-		req.cas = { agent, store };
-
 		/**
 		 * Ignore
 		 */
@@ -42,11 +43,12 @@ module.exports = function createCasClientHandler(...options) {
 		/**
 		 * SLO
 		 */
-		if (req.method === 'POST' && req.url === slo.path && slo.enabled) {
-			debug('SLO request detected.');
-			const { logoutRequest } = qs.parse(await getRawBody(req));
+		if (slo.enabled && req.method === 'POST') {
+			const { logoutRequest } = bodyParser();
 
 			if (logoutRequest) {
+				debug('SLO request detected.');
+				
 				const { SessionIndex: [ticket] } = await parseXML(logoutRequest);
 				const serviceTicket = store.get(ticket);
 
@@ -58,6 +60,10 @@ module.exports = function createCasClientHandler(...options) {
 				}
 
 				return false;
+			} else {
+				debug('CAS client detected a POST method but not SLO request.');
+
+				return true;
 			}
 		}
 

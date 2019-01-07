@@ -177,16 +177,10 @@ function DefaultOptionsFactory() {
 				proxyValidate: '/p3/proxyValidate',
 			}
 		},
-		session: {
-			enabled: false,
-			cookie: {
-				key: 'st',
-				httpOnly: true,
-			}
-		},
 		ignore: ['**/*.ico', '**/*.js', '**/*.css'],
 		proxy: {
-			enabled: true,
+			accepted: false, //TODO ignore PT
+			enabled: false,
 			pgt: {
 				callbackURL: '/pgtCalllbackURL'
 			}

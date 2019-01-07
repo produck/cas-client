@@ -43,12 +43,20 @@ It can also use with popular backend framework like Koa2. For example,
 ```js
 const koaCasClient = require('http-cas-client/wrap/koa2');
 const Koa = require('koa');
+const bodyparser = require('koa-bodyparser');
 
 const origin = 'http://localhost:9000';
 const prefix = '/cas';
 
 const app = new Koa();
-// NOTICE: Put the middleware include casClientHandler to the first.
+
+// NOTICE: If you put bodyparser after cas client, bodyparser will not receive req.socket data.
+// A native body parser is used in handler.
+// Sometimes you need to make some adjustments for your especial case.
+app.use(bodyparser());
+
+// NOTICE: Put the middleware include casClientHandler before your specific api code.
+// For example, put it before routes.
 app.use(koaCasClient({ origin, prefix })).use(ctx => {
 	const { principal, ticket } = ctx;
 

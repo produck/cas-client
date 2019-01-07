@@ -3,6 +3,7 @@ const presets = require('../../presets/apereo');
 const koaSessionCasClient = require('../../wrap/koa2-session');
 const koaCasClient = require('../../wrap/koa2');
 const Koa = require('koa');
+const bodyparser = require('koa-bodyparser');
 const session = require('koa-session');
 const http = require('http');
 
@@ -26,9 +27,9 @@ http.createServer(async (req, res) => {
 
 const app = new Koa();
 app.keys = ['koa-app'];
-app.use(session(app)).use(koaSessionCasClient({
+app.use(bodyparser()).use(session(app)).use(koaSessionCasClient({
 	origin, prefix,
-	renew: true
+	// renew: true
 })).use((ctx, next) => {
 	if (ctx.request.path === '/app') {
 		return next();

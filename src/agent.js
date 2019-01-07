@@ -132,8 +132,11 @@ class CasServerAgent extends EventEmitter {
 		const searchParams = {
 			ticket, 
 			service: serviceURL,
-			pgtUrl: `${serviceURL.origin}${this.proxy.pgt.callbackURL}`
 		};
+
+		if (this.proxy.enabled) {
+			searchParams.pgtUrl = `${serviceURL.origin}${this.proxy.pgt.callbackURL}`;
+		}
 
 		if (this.renew) {
 			searchParams.renew = true;
