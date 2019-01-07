@@ -14,15 +14,20 @@ module.exports = function createCasClientHandler(...options) {
 	const store = new ServiceTicketStore(agent);
 	const matcher = mm.matcher(ignore);
 
+	const cookieOptions = {
+		httpOnly: true,
+		path: '/'
+	};
+
 	return async function (req, res, {
 		getTicket = function () {
 			return cookie.parse(req.headers.cookie || '').st;
 		},
 		ticketCreated = function (ticketId) {
-			res.setHeader('Set-Cookie', cookie.serialize('st', ticketId, { httpOnly: true }));
+			res.setHeader('Set-Cookie', cookie.serialize('st', ticketId, cookieOptions));
 		},
 		ticketDestroyed = function () {
-			res.setHeader('Set-Cookie', cookie.serialize('st', ''));
+			res.setHeader('Set-Cookie', cookie.serialize('st', '', cookieOptions));
 		}
 	} = {}) {
 		req.cas = { agent, store };
