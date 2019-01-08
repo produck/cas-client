@@ -30,6 +30,9 @@ app.keys = ['koa-app'];
 app.use(bodyparser()).use(session(app)).use(koaSessionCasClient({
 	origin, prefix,
 	// renew: true
+	proxy: {
+		enabled: true
+	}
 })).use((ctx, next) => {
 	if (ctx.request.path === '/app') {
 		return next();
@@ -51,7 +54,13 @@ app.use(bodyparser()).use(session(app)).use(koaSessionCasClient({
 }).listen(2000);
 
 const app2 = new Koa();
-app2.use(koaCasClient({ origin, prefix })).use(async ctx => {
+app2.use(koaCasClient({
+	origin, prefix,
+	proxy: {
+		enabled: true,
+		accepted: true
+	}
+})).use(async ctx => {
 	const { principal, ticket } = ctx;
 
 	const response = await ticket.request('http://127.0.0.1:4000/');
@@ -65,7 +74,12 @@ app2.use(koaCasClient({ origin, prefix })).use(async ctx => {
 }).listen(3000);
 
 const app3 = new Koa();
-app3.use(koaCasClient({ origin, prefix })).use(async ctx => {
+app3.use(koaCasClient({
+	origin, prefix,
+	proxy: {
+		accepted: true
+	}
+})).use(async ctx => {
 	// your statements...
 	ctx.body = 'from the proxy proxy app.'
 }).listen(4000);

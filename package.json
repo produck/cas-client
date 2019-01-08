@@ -1,11 +1,12 @@
 {
   "name": "http-cas-client",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "A complete implement of CAS Client middleware for Node.js, support CAS 1.0, 2.0+, 3.0+ protocol.",
   "main": "index.js",
   "directories": {
     "test": "test"
   },
+  "typings": "index.d.ts",
   "dependencies": {
     "axios": "^0.18.0",
     "cookie": "^0.3.1",

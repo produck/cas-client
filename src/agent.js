@@ -34,14 +34,14 @@ class CasServerAgent extends EventEmitter {
 		this.renew = renew;
 		this.gateway = gateway;
 		
-		const pgtiouStore = this.pgtiouStore = {};
+		const pgtIouStore = this.pgtIouStore = {};
 
 		setInterval(() => {
 			const now = Date.now();
 
-			Object.keys(pgtiouStore).forEach(pgtiou => {
-				if (now > pgtiouStore[pgtiou].expired) {
-					delete pgtiouStore[pgtiou];
+			Object.keys(pgtIouStore).forEach(pgtiou => {
+				if (now > pgtIouStore[pgtiou].expired) {
+					delete pgtIouStore[pgtiou];
 					debug('Remove expired pgtiou.');
 				}
 			});
@@ -49,10 +49,10 @@ class CasServerAgent extends EventEmitter {
 	}
 
 	getPgtByPgtiou(pgtIou) {
-		const pgtWrap = this.pgtiouStore[pgtIou];
+		const pgtWrap = this.pgtIouStore[pgtIou];
 
 		if (pgtWrap) {
-			delete this.pgtiouStore[pgtIou];
+			delete this.pgtIouStore[pgtIou];
 			
 			return pgtWrap.pgt;
 		}
@@ -61,7 +61,7 @@ class CasServerAgent extends EventEmitter {
 	}
 
 	pushPgtiou(pgtIou, pgt) {
-		this.pgtiouStore[pgtIou] = {
+		this.pgtIouStore[pgtIou] = {
 			pgt, expired: Date.now() + PGTIOU_TIMEOUT
 		};
 	}
@@ -112,7 +112,14 @@ class CasServerAgent extends EventEmitter {
 		};
 	
 		if (this.cas === 3) {
-			principal.attributes = attributes && attributes[0];
+			const allAttributes = attributes && attributes[0];
+			const parsedAttributes = principal.attributes = {};
+			
+			if (allAttributes) {
+				for (const key in allAttributes) {
+					parsedAttributes[key] = allAttributes[key][0];
+				}
+			}
 		}
 	
 		if (this.proxy.enabled) {
@@ -135,7 +142,7 @@ class CasServerAgent extends EventEmitter {
 		};
 
 		if (this.proxy.enabled) {
-			searchParams.pgtUrl = `${serviceURL.origin}${this.proxy.pgt.callbackURL}`;
+			searchParams.pgtUrl = `${serviceURL.origin}${this.proxy.pgtCallbackURL}`;
 		}
 
 		if (this.renew) {

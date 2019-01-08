@@ -46,6 +46,10 @@ class ServiceTicket {
 	}
 
 	async request(url, data, { method = 'GET', auth = '', headers = {} } = {}) {
+		if (!this.agent.proxy.enabled) {
+			throw new Error('CAS Proxy feature is not enabled for the client this time.');
+		}
+
 		const appURL = new URL(url);
 		const proxyTicketResponse = await request(`${this.agent.proxyPath}`, {
 			pgt: this.pgt,

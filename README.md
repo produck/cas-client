@@ -102,7 +102,12 @@ const prefix = '/cas';
 
 const app = new Koa();
 app.keys = ['koa-app'];
-app.use(session(app)).use(koaSessionCasClient({ origin, prefix })).use((ctx, next) => {
+app.use(session(app)).use(koaSessionCasClient({
+	origin, prefix,
+	proxy: {
+		enabled: true
+	}
+})).use((ctx, next) => {
 	// If req.url matches /app, skip into next middleware.
 	if (ctx.request.path === '/app') {
 		return next();
@@ -127,7 +132,13 @@ app.use(session(app)).use(koaSessionCasClient({ origin, prefix })).use((ctx, nex
 }).listen(2000);
 
 const app2 = new Koa();
-app2.use(koaCasClient({ origin, prefix })).use(async ctx => {
+app2.use(koaCasClient({
+	origin, prefix,
+	proxy: {
+		accepted: true,
+		enabled: true
+	}
+})).use(async ctx => {
 	//This is the 2nd cas client.
 	const { principal, ticket } = ctx;
 
@@ -145,7 +156,12 @@ app2.use(koaCasClient({ origin, prefix })).use(async ctx => {
 }).listen(3000);
 
 const app3 = new Koa();
-app3.use(koaCasClient({ origin, prefix })).use(async ctx => {
+app3.use(koaCasClient({
+	origin, prefix,
+	proxy: {
+		accepted: true
+	}
+})).use(async ctx => {
 	// This is the 3rd cas client.
 	// your statements...
 	ctx.body = 'from the proxy proxy app.'
@@ -172,11 +188,10 @@ What is [Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origi
 const defaultOptions = {
 	cas: 3, // CAS protocol version 1, 2, 3
 	prefix: '/', // CAS Server custom deployment prefix
-	redirect: false, //TODO
-	slo: {
-		enabled: true, // Use SLO?
-		path: '/' // The path whitch logoutRequest request to from CAS Server.
-	},
+	renew: false, // CAS renew.
+	gateway: false, // CAS gateway
+	slo: true, // Use SLO?
+
 	// CAS Server URIs. Normally no change is required.
 	// Useful when use a nonstandard cas server or url re-writed.
 	path: {
@@ -193,10 +208,12 @@ const defaultOptions = {
 	},
 	ignore: ['**/*.ico', '**/*.js', '**/*.css'] // The resource path rules let cas client ignore.
 	proxy: {
+		accepted: true, // Handle a PT or not.
 		enabled: true, // CAS client use proxy feature or not.
-		pgt: {
-			callbackURL: '/pgtCalllbackURL' // The path use for cas server sending pgt & pgtIou
-		}
+
+		// The path use for cas server sending pgt & pgtIou
+		// Avoid conflict with your specific service path.
+		pgtCallbackURL: '/pgtCalllbackURL' 
 	}
 }
 ```

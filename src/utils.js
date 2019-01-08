@@ -60,3 +60,9 @@ exports.sendRedirect = function sendRedirect(response, url) {
 	response.setHeader('Location', url);
 	response.statusCode = 302;
 };
+
+const PT_REG = /^PT/;
+
+exports.isPT = function (ticketId) {
+	return PT_REG.test(ticketId);
+};

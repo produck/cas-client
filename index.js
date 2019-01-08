@@ -4,7 +4,7 @@ const mm = require('micromatch');
 const debug = require('debug')('cas');
 
 const merge = require('./src/merge');
-const { getRawBody, parseXML, sendRedirect } = require('./src/utils');
+const { getRawBody, parseXML, sendRedirect, isPT } = require('./src/utils');
 const { CasServerAgent } = require('./src/agent');
 const { ServiceTicketStore } = require('./src/store');
 
@@ -43,7 +43,7 @@ module.exports = function createCasClientHandler(...options) {
 		/**
 		 * SLO
 		 */
-		if (slo.enabled && req.method === 'POST') {
+		if (slo && req.method === 'POST') {
 			const { logoutRequest } = await bodyParser();
 
 			if (!logoutRequest) {
@@ -66,13 +66,13 @@ module.exports = function createCasClientHandler(...options) {
 		}
 
 		/**
-		 * PGT callbak
+		 * PGT callback
 		 */
-		if (proxy.enabled && req.method === 'GET' && req.url.indexOf(agent.proxy.pgt.callbackURL) === 0) {
-			if (req.url === agent.proxy.pgt.callbackURL) {
+		if (proxy.enabled && req.method === 'GET' && req.url.indexOf(proxy.pgtCallbackURL) === 0) {
+			if (req.url === proxy.pgtCallbackURL) {
 				debug('PGT 1st callback detected and respond to cas server status 200.');
 			} else {
-				const { pgtIou, pgtId } = qs.parse(req.url.replace(agent.proxy.pgt.callbackURL + '?', ''));
+				const { pgtIou, pgtId } = qs.parse(req.url.replace(proxy.pgtCallbackURL + '?', ''));
 				agent.pushPgtiou(pgtIou, pgtId);
 
 				debug('PGT 2ed callback detected and set pgt mapping.');
@@ -117,6 +117,10 @@ module.exports = function createCasClientHandler(...options) {
 
 		if (newTicket) {
 			debug(`A new ticket recieved ST=${newTicket}`);
+
+			if (!proxy.accepted && isPT(newTicket)) {
+				throw new Error('This client does NOT accept a ProxyTicket.');
+			}
 
 			requestURL.searchParams.delete('ticket');
 			const serviceTicketOptions = await agent.validateService(newTicket, requestURL);

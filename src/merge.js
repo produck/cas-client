@@ -8,8 +8,8 @@ module.exports = function mergeOptions(...optionsList) {
 		renew = finalOptions.renew,
 		gateway = finalOptions.gateway,
 		ignore = finalOptions.ignore,
+		slo = finalOptions.slo,
 		path,
-		slo,
 		proxy
 	}) => {
 		finalOptions.origin = origin;
@@ -18,16 +18,7 @@ module.exports = function mergeOptions(...optionsList) {
 		finalOptions.ignore = ignore;
 		finalOptions.renew = renew;
 		finalOptions.gateway = gateway;
-		
-		if (slo) {
-			const {
-				enabled = finalOptions.slo.enabled,
-				path = finalOptions.slo.path
-			} = slo;
-
-			finalOptions.slo.enabled = enabled;
-			finalOptions.slo.path = path;
-		}
+		finalOptions.slo = slo;
 
 		if (path) {
 			const {
@@ -60,20 +51,14 @@ module.exports = function mergeOptions(...optionsList) {
 
 		if (proxy) {
 			const {
-				enabled = finalOptions.session.enabled,
-				pgt
+				enabled = finalOptions.proxy.enabled,
+				accepted = finalOptions.proxy.accepted,
+				pgtCallbackURL = finalOptions.proxy.pgtCallbackURL
 			} = proxy;
 
+			finalOptions.proxy.accepted = accepted;
 			finalOptions.proxy.enabled = enabled;
-
-			if (pgt) {
-				const {
-					callbackURL = finalOptions.proxy.pgt.callbackURL
-				} = pgt;
-
-				finalOptions.proxy.pgt.callbackURL = callbackURL;
-			}
-
+			finalOptions.proxy.pgtCallbackURL = pgtCallbackURL;
 		}
 	});
 
@@ -82,7 +67,7 @@ module.exports = function mergeOptions(...optionsList) {
 	const { renew, gateway } = finalOptions;
 
 	if (renew && gateway) {
-		throw new Error('In options gateway & renew can not be true at same time.')
+		throw new Error('In options gateway & renew can not be true at same time.');
 	}
 
 	return finalOptions;
@@ -105,10 +90,7 @@ const validateOptionsRule = {
 	prefix: isString,
 	renew: isBoolean,
 	gateway: isBoolean,
-	slo: {
-		enabled: isBoolean,
-		path: isString
-	},
+	slo: isBoolean,
 	path: {
 		login: isString,
 		logout: isString,
@@ -122,10 +104,9 @@ const validateOptionsRule = {
 		}
 	},
 	proxy: {
+		accepted: isBoolean,
 		enabled: isBoolean,
-		pgt: {
-			callbackURL: isString
-		}
+		pgtCallbackURL: isString
 	}
 };
 
@@ -161,10 +142,7 @@ function DefaultOptionsFactory() {
 		prefix: '/',
 		renew: false,
 		gateway: false,
-		slo: {
-			enabled: true,
-			path: '/'
-		},
+		slo: true,
 		path: {
 			login: '/login',
 			logout: '/logout',
@@ -180,10 +158,8 @@ function DefaultOptionsFactory() {
 		ignore: ['**/*.ico', '**/*.js', '**/*.css'],
 		proxy: {
 			accepted: false, //TODO ignore PT
-			enabled: false,
-			pgt: {
-				callbackURL: '/pgtCalllbackURL'
-			}
+			enabled: false, //TODO ignore PT
+			pgtCallbackURL: '/pgtCalllbackURL'
 		}
 	};
 }
