@@ -4,7 +4,7 @@ exports.request = function request(url, queryMapping = {}) {
 	const resolvedURL = new URL(url);
 
 	Object.keys(queryMapping).forEach(key => {
-		resolvedURL.searchParams.set(key, queryMapping[key])
+		resolvedURL.searchParams.set(key, queryMapping[key]);
 	});
 
 	return new Promise((resolve, reject) => {

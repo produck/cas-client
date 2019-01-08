@@ -1,4 +1,3 @@
-/// <reference types="node" />
 import { IncomingMessage, ServerResponse } from "http";
 
 declare namespace CAS {
@@ -14,7 +13,7 @@ declare namespace httpCasClient {
 		(req: IncomingMessage, res: ServerResponse, hooks: Handler.hooks): Promise<Boolean>;
 	}
 
-	declare namespace Handler {
+	namespace Handler {
 		interface hooks {
 
 			/**
@@ -54,17 +53,17 @@ declare namespace httpCasClient {
 		 * If this parameter is set, ticket validation will only succeed if the service ticket was
 		 * issued from the presentation of the user’s primary credentials.
 		 */
-		renew?: Boolean = false;
+		renew?: Boolean;
 		
 		/**
 		 * If this parameter is set, CAS will not ask the client for credentials. 
 		 */
-		gateway?: Boolean = false;
+		gateway?: Boolean;
 		
 		/**
 		 * Use SLO or not.
 		 */
-		slo?: Boolean = true;
+		slo?: Boolean;
 
 		/**
 		 * URLs of requests matched rules will not be affected.
@@ -82,39 +81,39 @@ declare namespace httpCasClient {
 		proxy?: Options.proxy;
 	}
 
-	declare namespace Options {
+	namespace Options {
 
 		interface path {
 
 			/**
 			 * credential requestor / acceptor
 			 */
-			login?: String = '/login';
+			login?: String;
 
 			/**
 			 * destroy CAS session (logout)
 			 */
-			logout?: String = '/logout';
+			logout?: String;
 
 			/**
 			 * service ticket validation [CAS 1.0]
 			 */
-			validate?: String = '/validate';
+			validate?: String;
 
 			/**
 			 * service ticket validation [CAS 2.0]
 			 */
-			serviceValidate?: String = '/serviceValidate';
+			serviceValidate?: String;
 
 			/**
 			 * service/proxy ticket validation [CAS 2.0]
 			 */
-			proxyValidate?: String = '/proxyValidate';
+			proxyValidate?: String;
 
 			/**
 			 * proxy ticket service [CAS 2.0]
 			 */
-			proxy?: String = '/proxy';
+			proxy?: String;
 
 			/**
 			 * CAS 3.0 uri
@@ -124,12 +123,12 @@ declare namespace httpCasClient {
 				/**
 				 * service ticket validation [CAS 3.0]
 				 */
-				serviceValidate?: String = '/p3/serviceValidate';
+				serviceValidate?: String;
 
 				/**
 				 * service/proxy ticket validation [CAS 3.0]
 				 */
-				proxyValidate?: String = '/p3/proxyValidate';
+				proxyValidate?: String;
 			}
 		}
 				
@@ -138,17 +137,17 @@ declare namespace httpCasClient {
 			/**
 			 * Handle a PT ticket or not.
 			 */
-			accepted?: Boolean = false;
+			accepted?: Boolean;
 
 			/**
 			 * Enable proxy feature or not. PgtCallbackUrl will be effectived when true.
 			 */
-			enabled?: Boolean = false;
+			enabled?: Boolean;
 
 			/**
 			 * The callback url that receiving pgt and pgtIou from CAS server.
 			 */
-			pgtCallbackUrl?: String = '/pgtCallbackUrl';
+			pgtCallbackUrl?: String;
 		}
 	}
 }
@@ -156,6 +155,6 @@ declare namespace httpCasClient {
 /**
  * Create a native CasClientHandler for native http.createServer.
  */
-declare function httpCasClient(...options?: httpCasClient.Options[]): httpCasClient.Handler;
+declare function httpCasClient(...options: httpCasClient.Options[]): httpCasClient.Handler;
 
 export = httpCasClient;
