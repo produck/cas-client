@@ -9,7 +9,7 @@ const { CasServerAgent } = require('./src/agent');
 const { ServiceTicketStore } = require('./src/store');
 
 module.exports = function createCasClientHandler(...options) {
-	const { cas, origin, prefix, slo, ignore, path, proxy, renew, gateway } = merge(...options);
+	const { cas, origin, prefix, slo, renew, gateway, ignore, path, proxy } = merge(...options);
 	const agent = new CasServerAgent({ origin, prefix, cas, path, proxy, renew, gateway });
 	const store = new ServiceTicketStore(agent);
 	const matcher = mm.matcher(ignore);

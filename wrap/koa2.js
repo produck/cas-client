@@ -1,7 +1,7 @@
-const createCasClientHandler = require('../');
+const httpCasClient = require('../');
 
 module.exports = function createCasClientKoaMiddleware(...options) {
-	const handler = createCasClientHandler(...options);
+	const handler = httpCasClient(...options);
 
 	return async function casClientMiddleware(ctx, next) {
 		const { body } = ctx.request;
