@@ -1,14 +1,14 @@
 import { IncomingMessage, ServerResponse } from "http";
 
 declare namespace CAS {
-	type protocolVersionNumber = 1 | 2 | 3;
+	type version = 1 | 2 | 3;
 }
 
 declare namespace httpCasClient {
 	interface Handler {
 
 		/**
-		 * @returns continuity
+		 * @returns inProgress?
 		 */
 		(req: IncomingMessage, res: ServerResponse, hooks: Handler.hooks): Promise<Boolean>;
 	}
@@ -40,48 +40,106 @@ declare namespace httpCasClient {
 	
 	interface Options {
 		/**
-		 * The origin of CAS server.
+		 * CAS protocol version 1, 2, 3.
 		 */
-		origin: String;
+		cas?: CAS.version;
 
 		/**
-		 * CAS protocol version 1, 2, 3
+		 * The start of the CAS server URL, i.e. https://localhost:8443/cas
 		 */
-		cas?: CAS.protocolVersionNumber;
+		casServerUrlPrefix: String,
 
 		/**
-		 * If this parameter is set, ticket validation will only succeed if the service ticket was
-		 * issued from the presentation of the user’s primary credentials.
+		 * The name of the server this application is hosted on.
+		 * Service URL will be dynamically constructed using this,
+		 * i.e. https://localhost:8443 (you must include the protocol,
+		 * but port is optional if it's a standard port).
 		 */
-		renew?: Boolean;
-		
-		/**
-		 * If this parameter is set, CAS will not ask the client for credentials. 
-		 */
-		gateway?: Boolean;
-		
-		/**
-		 * Use SLO or not.
-		 */
-		slo?: Boolean;
+		serverName: String;
 
 		/**
-		 * URLs of requests matched rules will not be affected.
+		 * The options of this application server (CAS Client).
 		 */
-		filter?: String[];
-		
-		/**
-		 * CAS URIs.
-		 */
-		path?: Options.path;
+		client?: Options.client;
 
 		/**
-		 * About CAS proxy.
+		 * The options of CAS Server.
 		 */
-		proxy?: Options.proxy;
+		server?: Options.server;
 	}
 
 	namespace Options {
+
+		interface client {
+	
+			/**
+			 * The name of the server this application is hosted on.
+			 * Service URL will be dynamically constructed using this,
+			 * i.e. https://localhost:8443 (you must include the protocol,
+			 * but port is optional if it's a standard port).
+			 */
+			service?: String;
+
+			/**
+			 * Use SLO or not.
+			 */
+			slo?: Boolean;
+
+			/**
+			 * If this parameter is set, ticket validation will only succeed if the service ticket was
+			 * issued from the presentation of the user’s primary credentials.
+			 */
+			renew?: Boolean;
+			
+			/**
+			 * If this parameter is set, CAS will not ask the client for credentials. 
+			 */
+			gateway?: Boolean;
+
+			/**
+			 * Whether to store the Assertion in session or not. If sessions are not used, tickets
+			 * will be required for each request. Defaults to false.
+			 */
+			useSession?: Boolean
+			
+			/**
+			 * The method to be used when sending responses. While native HTTP redirects (GET) may
+			 * be utilized as the default method, applications that require a POST response can use
+			 * this parameter to indicate the method type. A HEADER method may also be specified to
+			 * indicate the CAS final response such as service and ticketshould be returned in form
+			 * of HTTP response headers. It is up to the CAS server implementation to determine whether
+			 * or not POST or HEADER responses are supported.
+			 */
+			method?: String;
+			
+			/**
+			 * URLs of requests matched rules will not be affected.
+			 * 
+			 *  - If you use strings and regexp lists, you only need to satisfy one item to pass.
+			 *  - Or provide a function to define custom rules.
+			 */
+			ignore?: RegExp[] | ((httpRequest: IncomingMessage) => Boolean | Promise<Boolean>);
+
+			/**
+			 * About CAS proxy.
+			 */
+			proxy?: proxy;
+		}
+
+		interface server {
+
+			/**
+			 * Defines the location of the CAS server login URL, i.e.
+			 * https://localhost:8443/cas/login. This overrides casServerUrlPrefix, if set.
+			 */
+			loginUrl?: String;
+
+			/**
+			 * CAS URIs.
+			 * https://apereo.github.io/cas/6.0.x/protocol/CAS-Protocol-Specification.html#2-cas-uris
+			 */
+			path?: path;
+		}
 
 		interface path {
 
@@ -135,21 +193,39 @@ declare namespace httpCasClient {
 		interface proxy {
 
 			/**
-			 * Handle a PT ticket or not.
+			 * Specifies whether any proxy is OK. Defaults to false.
 			 */
-			accepted?: Boolean;
+			acceptAny?: Boolean;
 
 			/**
-			 * Enable proxy feature or not. PgtCallbackUrl will be effectived when true.
+			 * Specifies the proxy chain. Each acceptable proxy chain should include
+			 * a space-separated list of URLs (for exact match) or regular expressions
+			 * of URLs (starting by the ^ character). Each acceptable proxy chain
+			 * should appear on its own line.
+			 * 
+			 *  - Or provide a function to define custom rules.
 			 */
-			enabled?: Boolean;
+			allowedChains?: ((proxiex: string[]) => Boolean | Promise<Boolean>);
 
 			/**
-			 * The callback url that receiving pgt and pgtIou from CAS server.
+			 * The callback URL to provide the CAS server to accept Proxy Granting Tickets.
 			 */
-			pgtCallbackUrl?: String;
+			callbackUrl?: String;
+
+			/**
+			 * The URL to watch for PGTIOU/PGT responses from the CAS server. Should be
+			 * defined from the root of the context. For example, if your application is
+			 * deployed in /cas-client-app and you want the proxy receptor URL to be
+			 * /cas-client-app/my/receptor you need to configure proxyReceptorUrl to be
+			 * /my/receptor.
+			 */
+			receptorUrl?: String;
 		}
 	}
+}
+
+class CasServerAgent {
+	constructor(options: httpCasClient.Options);
 }
 
 /**

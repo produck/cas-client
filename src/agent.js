@@ -1,6 +1,7 @@
 const EventEmitter = require('events');
 const debug = require('debug')('cas:agent');
-const { parseXML, request } = require('./utils');
+const axios = require('axios');
+const { parseXML } = require('./utils');
 
 const PGTIOU_TIMEOUT = 10000;
 
@@ -13,37 +14,67 @@ class CasAgentAuthenticationError extends CasAgentError {
 	}
 }
 
-const ticketTypeValidateMapping = {
-	PT: 'proxy',
-	ST: 'service'
-};
-
 class CasServerAgent extends EventEmitter {
-	constructor({ origin, prefix, cas, path, proxy, renew, gateway }) {
+	constructor({
+		cas, casServerUrlPrefix, serverName,
+		client: {
+			renew, gateway, useSession, slo, method, proxy, service, ignore
+		},
+		server: {
+			loginUrl, path
+		}
+	}) {
 		super();
 
-		const { host, port } = new URL(origin);
-		
+		this.ignoreValdate = ignoreValidatorFactory(ignore);
+
 		this.cas = cas;
-		this.path = path;
-		this.origin = origin;
-		this.host = host;
-		this.prefix = prefix;
-		this.port = port;
-		this.proxy = proxy;
+		this.allowedChains = proxy.allowedChains;
+		this.acceptAny = proxy.acceptAny;
+		this.proxy = Boolean(proxy.callbackUrl);
 		this.renew = renew;
 		this.gateway = gateway;
-		
+		this.useSession = useSession;
+		this.slo = slo;
+		this.method = method;
+		this.receptorUrl = proxy.receptorUrl;
+
+		this.casServerUrlPrefix = new URL(casServerUrlPrefix);
+		this.serviceUrl = new URL(service || `${serverName}`);
+		this.proxyUrl = new URL(path.proxy, casServerUrlPrefix);
+		this.loginUrl = new URL(loginUrl || `${casServerUrlPrefix}${path.login}`);
+		this.validateUrl = new URL(casServerUrlPrefix + {
+			1: path.validate,
+			2: this.acceptAny ? path.proxyValidate : path.serviceValidate,
+			3: this.acceptAny ? path.p3.proxyValidate : path.p3.serviceValidate
+		}[cas]);
+
+		this.loginUrl.searchParams.set('service', this.serviceUrl);
+		this.validateUrl.searchParams.set('service', this.serviceUrl);
+
+		if (this.proxy) {
+			this.validateUrl.searchParams.set('pgtUrl', proxy.callbackUrl);
+		}
+
+		if (renew) {
+			this.loginUrl.searchParams.set('renew', true);
+			this.validateUrl.searchParams.set('renew', true);
+		}
+
+		if (gateway) {
+			this.loginUrl.searchParams.set('gateway', true);
+		}
+
 		const pgtIouStore = this.pgtIouStore = {};
 
 		setInterval(() => {
-			const now = Date.now();
-
 			Object.keys(pgtIouStore).forEach(pgtiou => {
-				if (now > pgtIouStore[pgtiou].expired) {
-					delete pgtIouStore[pgtiou];
-					debug('Remove expired pgtiou.');
+				if (Date.now() < pgtIouStore[pgtiou].expired) {
+					return;
 				}
+				
+				delete pgtIouStore[pgtiou];
+				debug('Remove expired pgtiou.');
 			});
 		}, PGTIOU_TIMEOUT);
 	}
@@ -64,36 +95,6 @@ class CasServerAgent extends EventEmitter {
 		this.pgtIouStore[pgtIou] = {
 			pgt, expired: Date.now() + PGTIOU_TIMEOUT
 		};
-	}
-
-	get serviceValidatePath() {
-		const { validate, serviceValidate, p3 } = this.path;
-
-		return [validate, serviceValidate, p3.serviceValidate][this.cas - 1];
-	}
-
-	get proxyValidatePath() {
-		const { validate, proxyValidate, p3 } = this.path;
-
-		return [validate, proxyValidate, p3.proxyValidate][this.cas - 1];
-	}
-
-	get loginPath() {
-		const url = new URL(`${this.prefix}${this.path.login}`, this.origin);
-
-		if (this.renew) {
-			url.searchParams.set('renew', true);
-		}
-
-		if (this.gateway) {
-			url.searchParams.set('gateway', true);
-		}
-
-		return url;
-	}
-
-	get proxyPath() {
-		return new URL(`${this.prefix}${this.path.proxy}`, this.origin);
 	}
 
 	async $parserPrincipal(data) {
@@ -122,34 +123,17 @@ class CasServerAgent extends EventEmitter {
 			}
 		}
 	
-		if (this.proxy.enabled) {
-			const pgt = this.getPgtByPgtiou(proxyGrantingTicket[0]);
-
-			serviceTicketOptions.pgt = pgt;
+		if (this.proxy) {
+			serviceTicketOptions.pgt = this.getPgtByPgtiou(proxyGrantingTicket[0]);
 		}
 	
 		return serviceTicketOptions;
 	}
 
-	async validateService(ticket, serviceURL) {
-		
-		const ticketType = ticket.substr(0, 2);
-		const validatePath = this[ticketTypeValidateMapping[ticketType] + 'ValidatePath'];
-
-		const searchParams = {
-			ticket, 
-			service: serviceURL,
-		};
-
-		if (this.proxy.enabled) {
-			searchParams.pgtUrl = `${serviceURL.origin}${this.proxy.pgtCallbackURL}`;
-		}
-
-		if (this.renew) {
-			searchParams.renew = true;
-		}
-
-		const { data } = await request(`${this.origin}${this.prefix}${validatePath}`, searchParams);
+	async validateService(ticket) {
+		const { data } = await axios.get(this.validateUrl.href, {
+			params: { ticket }
+		});
 
 		debug('Validation response XML START:\n\n' + data);
 		debug('Validation response XML END.');
@@ -160,6 +144,14 @@ class CasServerAgent extends EventEmitter {
 
 		return serviceTicketOptions;
 	}
+}
+
+function ignoreValidatorFactory(any) {
+	if (typeof any === 'function') {
+		return any;
+	}
+
+	return url => any.find(regExp => regExp.test(url));
 }
 
 module.exports = {

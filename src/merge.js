@@ -2,72 +2,102 @@ module.exports = function mergeOptions(...optionsList) {
 	const finalOptions = DefaultOptionsFactory();
 
 	optionsList.forEach(({
-		origin = finalOptions.origin,
 		cas = finalOptions.cas,
-		prefix = finalOptions.prefix,
-		renew = finalOptions.renew,
-		gateway = finalOptions.gateway,
-		ignore = finalOptions.ignore,
-		slo = finalOptions.slo,
-		path,
-		proxy
+		casServerUrlPrefix = finalOptions.casServerUrlPrefix,
+		serverName = finalOptions.serverName,
+		client,
+		server
 	}) => {
-		finalOptions.origin = origin;
 		finalOptions.cas = cas;
-		finalOptions.prefix = prefix;
-		finalOptions.ignore = ignore;
-		finalOptions.renew = renew;
-		finalOptions.gateway = gateway;
-		finalOptions.slo = slo;
+		finalOptions.casServerUrlPrefix = casServerUrlPrefix;
+		finalOptions.serverName = serverName;
 
-		if (path) {
+		if (client) {
 			const {
-				login = finalOptions.path.login,
-				logout = finalOptions.path.logout,
-				validate = finalOptions.path.validate,
-				serviceValidate = finalOptions.path.serviceValidate,
-				proxyValidate =  finalOptions.path.proxyValidate,
-				proxy = finalOptions.path.proxy,
-				p3
-			} = path;
+				service = finalOptions.client.service,
+				slo = finalOptions.client.slo,
+				renew = finalOptions.client.renew,
+				gateway = finalOptions.client.gateway,
+				useSession =  finalOptions.client.useSession,
+				method = finalOptions.client.method,
+				ignore = finalOptions.client.ignore,
+				proxy
+			} = client;
 
-			finalOptions.path.login = login;
-			finalOptions.path.logout = logout;
-			finalOptions.path.validate = validate;
-			finalOptions.path.serviceValidate = serviceValidate;
-			finalOptions.path.proxyValidate = proxyValidate;
-			finalOptions.path.proxy = proxy;
+			finalOptions.client.service = service;
+			finalOptions.client.slo = slo;
+			finalOptions.client.renew = renew;
+			finalOptions.client.gateway = gateway;
+			finalOptions.client.useSession = useSession;
+			finalOptions.client.method = method;
+			finalOptions.client.ignore = ignore;
 
-			if (p3) {
+			if (proxy) {
 				const {
-					serviceValidate = finalOptions.p3.path.serviceValidate,
-					proxyValidate =  finalOptions.p3.path.proxyValidate,
-				} = p3;
+					acceptAny = finalOptions.client.proxy.acceptAny,
+					allowedChains = finalOptions.client.proxy.allowedChains,
+					callbackUrl = finalOptions.client.proxy.callbackUrl,
+					receptorUrl = finalOptions.client.proxy.receptorUrl,
+				} = proxy;
 
-				finalOptions.path.p3.serviceValidate = serviceValidate;
-				finalOptions.path.p3.proxyValidate = proxyValidate;
+				finalOptions.client.proxy.acceptAny = acceptAny;
+				finalOptions.client.proxy.allowedChains = allowedChains;
+				finalOptions.client.proxy.callbackUrl = callbackUrl;
+				finalOptions.client.proxy.receptorUrl = receptorUrl;
 			}
 		}
 
-		if (proxy) {
+		if (server) {
 			const {
-				enabled = finalOptions.proxy.enabled,
-				accepted = finalOptions.proxy.accepted,
-				pgtCallbackURL = finalOptions.proxy.pgtCallbackURL
-			} = proxy;
+				loginUrl = finalOptions.server.loginUrl,
+				path
+			} = server;
 
-			finalOptions.proxy.accepted = accepted;
-			finalOptions.proxy.enabled = enabled;
-			finalOptions.proxy.pgtCallbackURL = pgtCallbackURL;
+			finalOptions.proxy.loginUrl = loginUrl;
+
+			if (path) {
+				const {
+					login = finalOptions.server.path.login,
+					logout = finalOptions.server.path.logout,
+					validate = finalOptions.server.path.validate,
+					serviceValidate = finalOptions.server.path.serviceValidate,
+					proxyValidate = finalOptions.server.path.proxyValidate,
+					proxy = finalOptions.server.path.proxy,
+					p3
+				} = path;
+
+				finalOptions.server.path.login = login;
+				finalOptions.server.path.logout = logout;
+				finalOptions.server.path.validate = validate;
+				finalOptions.server.path.serviceValidate = serviceValidate;
+				finalOptions.server.path.proxyValidate = proxyValidate;
+				finalOptions.server.path.proxy = proxy;
+
+				if (p3) {
+					const {
+						serviceValidate = finalOptions.server.path.p3.serviceValidate,
+						proxyValidate = finalOptions.server.path.p3.proxyValidate
+					} = p3;
+
+					finalOptions.server.path.p3.serviceValidate = serviceValidate;
+					finalOptions.server.path.p3.proxyValidate = proxyValidate;
+				}
+			}
 		}
 	});
 
 	validateOptions(finalOptions);
 
-	const { renew, gateway } = finalOptions;
+	const { renew, gateway } = finalOptions.client;
 
 	if (renew && gateway) {
 		throw new Error('In options gateway & renew can not be true at same time.');
+	}
+
+	if (finalOptions.client.proxy.callbackUrl) {
+		if (!finalOptions.client.proxy.receptorUrl) {
+			throw new Error('Use proxy and callbackUrl set. receptorUrl can not be null.');
+		}
 	}
 
 	return finalOptions;
@@ -79,34 +109,52 @@ const validateOptionsRule = {
 	cas(value) {
 		return [1, 2, 3].indexOf(value) !== -1;
 	},
-	ignore(valueList) {
-		if (!Array.isArray(valueList)) {
-			return false;
-		}
+	casServerUrlPrefix: isString,
+	serverName: isString,
+	client: {
+		renew: isBoolean,
+		gateway: isBoolean,
+		slo: isBoolean,
+		ignore(value) {
+			if (Array.isArray(value)) {
+				return !value.find(value => !(value instanceof RegExp));
+			}
 
-		return !valueList.find(value => !isString(value));
-	},
-	origin: isString,
-	prefix: isString,
-	renew: isBoolean,
-	gateway: isBoolean,
-	slo: isBoolean,
-	path: {
-		login: isString,
-		logout: isString,
-		validate: isString,
-		serviceValidate: isString,
-		proxyValidate: isString,
-		proxy: isString,
-		p3: {
-			serviceValidate: isString,
-			proxyValidate: isString
+			return value instanceof RegExp || typeof value === 'function';
+		},
+		proxy: {
+			acceptAny: isBoolean,
+			allowedChains(value) {
+				if (Array.isArray(value)) {
+					return !value.find(value => !isString(value) || !(value instanceof RegExp));
+				}
+	
+				return value instanceof RegExp || typeof value === 'function';
+			},
+			callbackUrl(value) {
+				return isString(value) || value === null;
+			},
+			receptorUrl(value) {
+				return isString(value) || value === null;
+			}
 		}
 	},
-	proxy: {
-		accepted: isBoolean,
-		enabled: isBoolean,
-		pgtCallbackURL: isString
+	server: {
+		loginUrl(value) {
+			return isString(value) || value === null;
+		},
+		path: {
+			login: isString,
+			logout: isString,
+			validate: isString,
+			serviceValidate: isString,
+			proxyValidate: isString,
+			proxy: isString,
+			p3: {
+				serviceValidate: isString,
+				proxyValidate: isString
+			}
+		}
 	}
 };
 
@@ -139,27 +187,37 @@ function validateOptions(options) {
 function DefaultOptionsFactory() {
 	return {
 		cas: 3,
-		prefix: '/',
-		renew: false,
-		gateway: false,
-		slo: true,
-		path: {
-			login: '/login',
-			logout: '/logout',
-			validate: '/validate',
-			serviceValidate: '/serviceValidate',
-			proxyValidate: '/proxyValidate',
-			proxy: '/proxy',
-			p3: {
-				serviceValidate: '/p3/serviceValidate',
-				proxyValidate: '/p3/proxyValidate',
+		// casServerUrlPrefix
+		// serverName
+		client: {
+			service: null,
+			slo: true,
+			renew: false,
+			gateway: false,
+			useSession: false,
+			method: 'GET',
+			ignore: [/\.ico/, /\.css/, /\.js/, /\.jpe?g/, /\.svg/, /\.png/],
+			proxy: {
+				acceptAny: false, //TODO ignore PT
+				allowedChains: () => true,
+				callbackUrl: null, //TODO a url
+				receptorUrl: null //TODO a path
 			}
 		},
-		ignore: ['**/*.ico', '**/*.js', '**/*.css'],
-		proxy: {
-			accepted: false, //TODO ignore PT
-			enabled: false, //TODO ignore PT
-			pgtCallbackURL: '/pgtCalllbackURL'
+		server: {
+			loginUrl: null,
+			path: {
+				login: '/login', //TODO
+				logout: '/logout',
+				validate: '/validate',
+				serviceValidate: '/serviceValidate',
+				proxyValidate: '/proxyValidate',
+				proxy: '/proxy',
+				p3: {
+					serviceValidate: '/p3/serviceValidate', //TODO accroding proxy callback url
+					proxyValidate: '/p3/proxyValidate',
+				}
+			}
 		}
 	};
 }

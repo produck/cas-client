@@ -1,18 +1,16 @@
 const cookie = require('cookie');
 const qs = require('qs');
-const mm = require('micromatch');
 const debug = require('debug')('cas');
 
 const merge = require('./src/merge');
-const { getRawBody, parseXML, sendRedirect, isPT } = require('./src/utils');
+const { getRawBody, parseXML, sendRedirect } = require('./src/utils');
 const { CasServerAgent } = require('./src/agent');
 const { ServiceTicketStore } = require('./src/store');
 
 module.exports = function createCasClientHandler(...options) {
-	const { cas, origin, prefix, slo, renew, gateway, ignore, path, proxy } = merge(...options);
-	const agent = new CasServerAgent({ origin, prefix, cas, path, proxy, renew, gateway });
+	const clientOptions = merge(...options);
+	const agent = new CasServerAgent(clientOptions);
 	const store = new ServiceTicketStore(agent);
-	const matcher = mm.matcher(ignore);
 
 	const cookieOptions = {
 		httpOnly: true,
@@ -33,17 +31,18 @@ module.exports = function createCasClientHandler(...options) {
 			return qs.parse(await getRawBody(req));
 		}
 	} = {}) {
+
 		/**
 		 * Ignore
 		 */
-		if (matcher(req.url, ignore)) {
+		if (agent.ignoreValdate(req.url)) {
 			return true;
 		}
 
 		/**
 		 * SLO
 		 */
-		if (slo && req.method === 'POST') {
+		if (req.method === 'POST' && req.url === agent.serviceUrl.pathname && agent.slo) {
 			const { logoutRequest } = await bodyParser();
 
 			if (!logoutRequest) {
@@ -60,6 +59,8 @@ module.exports = function createCasClientHandler(...options) {
 				} else {
 					debug(`Principal of ticket ST=${ticket} not found when SLO.`);
 				}
+				
+				res.end();
 
 				return false;
 			}
@@ -68,12 +69,12 @@ module.exports = function createCasClientHandler(...options) {
 		/**
 		 * PGT callback
 		 */
-		if (proxy.enabled && req.method === 'GET' && req.url.indexOf(proxy.pgtCallbackURL) === 0) {
-			if (req.url === proxy.pgtCallbackURL) {
+		if (agent.proxy && req.method === 'GET' && req.url.indexOf(agent.receptorUrl) !== -1) {
+			if (req.url === agent.receptorUrl) {
 				debug('PGT 1st callback detected and respond to cas server status 200.');
 			} else {
-				const { pgtIou, pgtId } = qs.parse(req.url.replace(proxy.pgtCallbackURL + '?', ''));
-				agent.pushPgtiou(pgtIou, pgtId);
+				const { searchParams } = new URL(req.url, agent.serviceUrl);
+				agent.pushPgtiou(searchParams.get('pgtIou'), searchParams.get('pgtId'));
 
 				debug('PGT 2ed callback detected and set pgt mapping.');
 			}
@@ -112,15 +113,11 @@ module.exports = function createCasClientHandler(...options) {
 		/**
 		 * NO valid st in cookie, try to sso.
 		 */
-		const requestURL = new URL(`http://${req.headers.host}${req.url}`);
+		const requestURL = new URL(req.url, agent.serviceUrl);
 		const newTicket = requestURL.searchParams.get('ticket');
 
 		if (newTicket) {
 			debug(`A new ticket recieved ST=${newTicket}`);
-
-			if (!proxy.accepted && isPT(newTicket)) {
-				throw new Error('This client does NOT accept a ProxyTicket.');
-			}
 
 			requestURL.searchParams.delete('ticket');
 			const serviceTicketOptions = await agent.validateService(newTicket, requestURL);
@@ -129,6 +126,7 @@ module.exports = function createCasClientHandler(...options) {
 			store.put(newTicket, serviceTicketOptions);
 			
 			await ticketCreated(newTicket);
+
 			requestURL.searchParams.delete('_g');
 
 			sendRedirect(res, requestURL);
@@ -141,14 +139,11 @@ module.exports = function createCasClientHandler(...options) {
 			}
 
 			debug('Access is unauthenticated and redirect to cas server "/login".');
-			if (gateway) {
+			if (agent.gateway) {
 				requestURL.searchParams.set('_g', 1);
 			}
 
-			const redirectLocation = new URL(agent.loginPath);
-			redirectLocation.searchParams.set('service', requestURL);
-
-			sendRedirect(res, redirectLocation);
+			sendRedirect(res, agent.loginUrl);
 		}
 
 		return false;
