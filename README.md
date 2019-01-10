@@ -23,7 +23,10 @@ const httpCasClient = require('http-cas-client');
 
 // A CAS server deployed at url http://localhost:8080.
 // Default prefix is '/'.
-const handler = httpCasClient({ origin: 'http://localhost:8080' });
+const handler = httpCasClient({
+	casServerUrlPrefix: 'http://localhost:9000/cas',
+	serverName: 'http://127.0.0.1'
+});
 
 http.createServer(async (req, res) => {
 	if(!await handler(req, res)) {
@@ -45,8 +48,7 @@ const koaCasClient = require('http-cas-client/wrap/koa2');
 const Koa = require('koa');
 const bodyparser = require('koa-bodyparser');
 
-const origin = 'http://localhost:9000';
-const prefix = '/cas';
+const casServerUrlPrefix = 'http://localhost:9000/cas';
 
 const app = new Koa();
 
@@ -57,11 +59,14 @@ app.use(bodyparser());
 
 // NOTICE: Put the middleware include casClientHandler before your specific api code.
 // For example, put it before routes.
-app.use(koaCasClient({ origin, prefix })).use(ctx => {
+app.use(koaCasClient({
+	casServerUrlPrefix: 'http://localhost:9000/cas',
+	serverName: 'http://127.0.0.1'
+})).use(ctx => {
 	const { principal, ticket } = ctx;
 
 	// your statements...
-	ctx.body = `<a href="${origin}${prefix}/logout">SLO</a><pre>`
+	ctx.body = `<a href="${casServerUrlPrefix}/logout">SLO</a><pre>`
 	ctx.body += JSON.stringify(principal, null, 2);
 	ctx.body += '</pre>'
 }).listen(80);
@@ -73,19 +78,20 @@ So there is also a way to implement with all nodejs backend frameworks. For exam
 const koaSessionCasClient = require('http-cas-client/wrap/koa2-session');
 const session = require('koa-session');
 const Koa = require('koa');
-
-const origin = 'http://localhost:9000';
-const prefix = '/cas';
+const casServerUrlPrefix = 'http://localhost:9000/cas';
 
 const app = new Koa();
 const sessionMiddleware = session(app);
 app.keys = ['koa-app'];
 
-app.use(session(app)).use(koaSessionCasClient({ origin, prefix })).use(ctx => {
+app.use(session(app)).use(koaSessionCasClient({
+	casServerUrlPrefix: 'http://localhost:9000/cas',
+	serverName: 'http://127.0.0.1'
+})).use(ctx => {
 	const { principal } = ctx;
 
 	// your statements...
-	ctx.body = `<a href="${origin}${prefix}/logout">SLO</a><pre>`
+	ctx.body = `<a href="${casServerUrlPrefix}/logout">SLO</a><pre>`
 	ctx.body += JSON.stringify(principal, null, 2);
 	ctx.body += '</pre>'
 }).listen(80);
@@ -97,15 +103,18 @@ const koaCasClient = require('http-cas-client/wrap/koa2');
 const Koa = require('koa');
 const session = require('koa-session');
 
-const origin = 'http://localhost:9000';
-const prefix = '/cas';
+const casServerUrlPrefix = 'http://localhost:9000/cas';
 
 const app = new Koa();
 app.keys = ['koa-app'];
 app.use(session(app)).use(koaSessionCasClient({
-	origin, prefix,
-	proxy: {
-		enabled: true
+	casServerUrlPrefix: 'http://localhost:9000/cas',
+	serverName: 'http://127.0.0.1:2000',
+	client: {
+		proxy: {
+			callbackUrl: 'http://127.0.0.1:2000/callback',
+			receptorUrl: '/callback'
+		}
 	}
 })).use((ctx, next) => {
 	// If req.url matches /app, skip into next middleware.
@@ -118,14 +127,16 @@ app.use(session(app)).use(koaSessionCasClient({
 	// This is the 1st cas client.
 	// your statements...
 	ctx.body = `<p>This is proxy</p>`;
-	ctx.body += `<a href="${origin}${prefix}/logout">SLO</a><pre>`;
+	ctx.body = `<a href="${casServerUrlPrefix}/logout">SLO</a><pre>`
 	ctx.body += JSON.stringify(principal, null, 2);
 	ctx.body += '</pre>'
 }).use(async ctx => {
 	const { ticket } = ctx;
 
 	// Proxy request some data from 2rd cas client 'http://127.0.0.1:3000'.
-	const response = await ticket.request('http://127.0.0.1:3000/');
+	const response = await ticket.request('http://127.0.0.1:3000/').then(axios => {
+		return axios.post('/test');
+	});
 
 	// Proxy send the data from 2rd.
 	ctx.body = response.data;
@@ -133,21 +144,27 @@ app.use(session(app)).use(koaSessionCasClient({
 
 const app2 = new Koa();
 app2.use(koaCasClient({
-	origin, prefix,
-	proxy: {
-		accepted: true,
-		enabled: true
+	casServerUrlPrefix: 'http://localhost:9000/cas',
+	serverName: 'http://127.0.0.1:3000',
+	client: {
+		proxy: {
+			acceptAny: true,
+			callbackUrl: 'http://127.0.0.1:3000/proxyCallback',
+			receptorUrl: '/proxyCallback'
+		}
 	}
 })).use(async ctx => {
 	//This is the 2nd cas client.
 	const { principal, ticket } = ctx;
 
 	// Proxy request some data from 3rd cas client 'http://127.0.0.1:4000/'.
-	const response = await ticket.request('http://127.0.0.1:4000/');
+	const response = await ticket.request('http://127.0.0.1:4000/').then(axios => {
+		return axios.post('/test');
+	});
 
 	// your statements...
 	ctx.body = `<p>This is App</p>`;
-	ctx.body += `<a href="${origin}${prefix}/logout">SLO</a><pre>`;
+	ctx.body += `<a href="${casServerUrlPrefix}/logout">SLO</a><pre>`;
 	ctx.body += JSON.stringify(principal, null, 2);
 	ctx.body += '</pre>';
 
@@ -157,9 +174,12 @@ app2.use(koaCasClient({
 
 const app3 = new Koa();
 app3.use(koaCasClient({
-	origin, prefix,
-	proxy: {
-		accepted: true
+	casServerUrlPrefix: 'http://localhost:9000/cas',
+	serverName: 'http://127.0.0.1:4000',
+	client: {
+		proxy: {
+			acceptAny: true,
+		}
 	}
 })).use(async ctx => {
 	// This is the 3rd cas client.
@@ -177,70 +197,57 @@ At least I think that's easy. Good luck.
 The origin of CAS Server is essential. The simplest form is like,
 ```js
 const httpCasClient = require('http-cas-client');
-const handler = httpCasClient({ origin: 'http://your.cas-server.hostname' });
+const handler = httpCasClient({
+	casServerUrlPrefix: 'http://localhost:9000/cas',
+	serverName: 'http://127.0.0.1',
+});
 ```
-What is [Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin)?
 #### Full Default Options
 ```js
-// options.origin is required.
-
 // Other items are optional.
 const defaultOptions = {
 	cas: 3, // CAS protocol version 1, 2, 3
-	prefix: '/', // CAS Server custom deployment prefix
-	renew: false, // CAS renew.
-	gateway: false, // CAS gateway
-	slo: true, // Use SLO?
 
-	// CAS Server URIs. Normally no change is required.
-	// Useful when use a nonstandard cas server or url re-writed.
-	path: {
-		login: '/login',
-		logout: '/logout',
-		validate: '/validate',
-		serviceValidate: '/serviceValidate',
-		proxyValidate: '/proxyValidate',
-		proxy: '/proxy',
-		p3: {
-			serviceValidate: '/p3/serviceValidate',
-			proxyValidate: '/p3/proxyValidate',
+	client: {
+		service: null,
+		slo: true, // Use SLO?
+		prefix: '/', // CAS Server custom deployment prefix
+		renew: false, // CAS renew.
+		gateway: false, // CAS gateway
+		useSession: false,
+		method: 'GET',
+		// The resource path rules let cas client ignore.
+		ignore: [/\.(ico|css|js|jpe?g|svg|png)/],
+		proxy: {
+			acceptAny: false,
+			allowedChains: () => true,
+			callbackUrl: null,
+			receptorUrl: null
 		}
 	},
-	ignore: ['**/*.ico', '**/*.js', '**/*.css'] // The resource path rules let cas client ignore.
-	proxy: {
-		accepted: true, // Handle a PT or not.
-		enabled: true, // CAS client use proxy feature or not.
 
-		// The path use for cas server sending pgt & pgtIou
-		// Avoid conflict with your specific service path.
-		pgtCallbackURL: '/pgtCalllbackURL' 
+	server: {
+		loginUrl: null,
+
+		// CAS Server URIs. Normally no change is required.
+		// Useful when use a nonstandard cas server or url re-writed.
+		path: {
+			login: '/login',
+			logout: '/logout',
+			validate: '/validate',
+			serviceValidate: '/serviceValidate',
+			proxyValidate: '/proxyValidate',
+			proxy: '/proxy',
+			p3: {
+				serviceValidate: '/p3/serviceValidate',
+				proxyValidate: '/p3/proxyValidate',
+			}
+		}
 	}
 }
 ```
 Why these paths? See also, [CAS Protocol 3.0 Specification](https://apereo.github.io/cas/5.2.x/protocol/CAS-Protocol-Specification.html#2-cas-uris).
 
-#### Presets for Apereo CAS
-Version difference between ``=4.0.x`` and ``>4.1.x``.
-
-In apereo 4.0.x (non prefix /p3):
-> The current CAS protocol is the version 3.0, implemented by the CAS server 4.0.
-It’s mainly a capture of the most common enhancements built on top of the CAS protocol revision 2.0.
-Among all features, the most noticable update between versions 2.0 and 3.0 is the ability to return the authentication/user attributes in the **/serviceValidate** response.
-
-See also, [CAS-Protocol 4.0.x](https://apereo.github.io/cas/4.0.x/protocol/CAS-Protocol.html).
-
-In apereo 4.1.x (prefix /p3):
-> The current CAS protocol is the version 3.0. The draft version of the protocol is available as part of the CAS codebase, which is hereby implemented. It’s mainly a capture of the most common enhancements built on top of the CAS protocol revision 2.0. Among all features, the most noticeable update between versions 2.0 and 3.0 is the ability to return the authentication/user attributes through the new **/p3/serviceValidate** response (in addition to the **/serviceValidate** endpoint, already existing for CAS 2.0 protocol).
-
-See also, [CAS-Protocol 4.1.x](https://apereo.github.io/cas/4.1.x/protocol/CAS-Protocol.html).
-
-When dependent on an ``Apereo 4.0.x CAS Server``, options need to be with a preset,
-```js
-const presets = require('http-cas-client/presets/apereo');
-const casClientHandler = httpCasClient(presets['apereo =4.0.x'], {
-	origin: 'http://your.cas-server.hostname'
-});
-```
 #### Customs Options for Special Purposes
 You can also override all items of options for your special cas server. And use chained multiple options arguments to create handler,
 ```js

@@ -196,25 +196,25 @@ function DefaultOptionsFactory() {
 			gateway: false,
 			useSession: false,
 			method: 'GET',
-			ignore: [/\.ico/, /\.css/, /\.js/, /\.jpe?g/, /\.svg/, /\.png/],
+			ignore: [/\.(ico|css|js|jpe?g|svg|png)/],
 			proxy: {
-				acceptAny: false, //TODO ignore PT
+				acceptAny: false,
 				allowedChains: () => true,
-				callbackUrl: null, //TODO a url
-				receptorUrl: null //TODO a path
+				callbackUrl: null,
+				receptorUrl: null
 			}
 		},
 		server: {
 			loginUrl: null,
 			path: {
-				login: '/login', //TODO
+				login: '/login',
 				logout: '/logout',
 				validate: '/validate',
 				serviceValidate: '/serviceValidate',
 				proxyValidate: '/proxyValidate',
 				proxy: '/proxy',
 				p3: {
-					serviceValidate: '/p3/serviceValidate', //TODO accroding proxy callback url
+					serviceValidate: '/p3/serviceValidate',
 					proxyValidate: '/p3/proxyValidate',
 				}
 			}
