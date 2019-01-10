@@ -109,8 +109,8 @@ const validateOptionsRule = {
 	cas(value) {
 		return [1, 2, 3].indexOf(value) !== -1;
 	},
-	casServerUrlPrefix: isString,
-	serverName: isString,
+	casServerUrlPrefix: isPath,
+	serverName: isPath,
 	client: {
 		renew: isBoolean,
 		gateway: isBoolean,
@@ -125,34 +125,30 @@ const validateOptionsRule = {
 		proxy: {
 			acceptAny: isBoolean,
 			allowedChains(value) {
-				if (Array.isArray(value)) {
-					return !value.find(value => !isString(value) || !(value instanceof RegExp));
-				}
-	
-				return value instanceof RegExp || typeof value === 'function';
+				return typeof value === 'function';
 			},
 			callbackUrl(value) {
-				return isString(value) || value === null;
+				return isPath(value) || value === null;
 			},
 			receptorUrl(value) {
-				return isString(value) || value === null;
+				return isPath(value) || value === null;
 			}
 		}
 	},
 	server: {
 		loginUrl(value) {
-			return isString(value) || value === null;
+			return isPath(value) || value === null;
 		},
 		path: {
-			login: isString,
-			logout: isString,
-			validate: isString,
-			serviceValidate: isString,
-			proxyValidate: isString,
-			proxy: isString,
+			login: isPath,
+			logout: isPath,
+			validate: isPath,
+			serviceValidate: isPath,
+			proxyValidate: isPath,
+			proxy: isPath,
 			p3: {
-				serviceValidate: isString,
-				proxyValidate: isString
+				serviceValidate: isPath,
+				proxyValidate: isPath
 			}
 		}
 	}
@@ -169,9 +165,8 @@ function validateOptions(options) {
 			const optionsValue = optionsNode[item];
 
 			if (typeof ruleValidator === 'object') {
-
 				validate(ruleValidator, optionsValue);
-			} else if (!ruleValidator(optionsValue)) {
+			} else if (!ruleValidator(optionsValue, options)) {
 				throw new CasMiddlewareOptionsError(`Bad value at options.${nodePath.join('.')}`);
 			}
 
@@ -228,4 +223,8 @@ function isBoolean(value) {
 
 function isString(value) {
 	return typeof value === 'string';
+}
+
+function isPath(value) {
+	return isString(value) && value.charAt(value.length - 1) !== '/';
 }

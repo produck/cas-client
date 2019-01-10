@@ -42,7 +42,7 @@ module.exports = function httpCasClient(...options) {
 		/**
 		 * SLO
 		 */
-		if (req.method === 'POST' && req.url === agent.serviceUrl.pathname && agent.slo) {
+		if (req.method === 'POST' && agent.slo) {
 			const { logoutRequest } = await bodyParser();
 
 			if (!logoutRequest) {
@@ -143,7 +143,10 @@ module.exports = function httpCasClient(...options) {
 				requestURL.searchParams.set('_g', 1);
 			}
 
-			sendRedirect(res, agent.loginUrl);
+			const loginUrl = new URL(agent.loginUrl);
+			loginUrl.searchParams.set('service', requestURL);
+
+			sendRedirect(res, loginUrl);
 		}
 
 		return false;

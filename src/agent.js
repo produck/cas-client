@@ -49,8 +49,8 @@ class CasServerAgent extends EventEmitter {
 			3: this.acceptAny ? path.p3.proxyValidate : path.p3.serviceValidate
 		}[cas]);
 
-		this.loginUrl.searchParams.set('service', this.serviceUrl);
-		this.validateUrl.searchParams.set('service', this.serviceUrl);
+		// this.loginUrl.searchParams.set('service', this.serviceUrl);
+		// this.validateUrl.searchParams.set('service', this.serviceUrl);
 
 		if (this.proxy) {
 			this.validateUrl.searchParams.set('pgtUrl', proxy.callbackUrl);
@@ -130,8 +130,12 @@ class CasServerAgent extends EventEmitter {
 		return serviceTicketOptions;
 	}
 
-	async validateService(ticket) {
-		const { data } = await axios.get(this.validateUrl.href, {
+	async validateService(ticket, serviceUrl) {
+		const validateUrl = new URL(this.validateUrl);
+
+		validateUrl.searchParams.set('service', serviceUrl);
+
+		const { data } = await axios.get(validateUrl.href, {
 			params: { ticket }
 		});
 

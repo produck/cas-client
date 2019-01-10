@@ -1,5 +1,4 @@
 const createCasClientHandler = require('../..');
-const presets = require('../../presets/apereo');
 const http = require('http');
 
 const origin = 'http://localhost:9000';

@@ -1,6 +1,6 @@
 {
   "name": "http-cas-client",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A complete implement of CAS Client middleware for Node.js, support CAS 1.0, 2.0+, 3.0+ protocol.",
   "main": "index.js",
   "directories": {
@@ -49,9 +49,9 @@
   },
   "files": [
     "src",
-    "presets",
     "wrap",
-    "index.js"
+    "index.js",
+    "index.d.ts"
   ],
   "homepage": "https://github.com/lemonce/cas-client#readme"
 }
