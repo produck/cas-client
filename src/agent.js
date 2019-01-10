@@ -41,7 +41,7 @@ class CasServerAgent extends EventEmitter {
 
 		this.casServerUrlPrefix = new URL(casServerUrlPrefix);
 		this.serviceUrl = new URL(service || `${serverName}`);
-		this.proxyUrl = new URL(path.proxy, casServerUrlPrefix);
+		this.proxyUrl = new URL(casServerUrlPrefix + path.proxy);
 		this.loginUrl = new URL(loginUrl || `${casServerUrlPrefix}${path.login}`);
 		this.validateUrl = new URL(casServerUrlPrefix + {
 			1: path.validate,

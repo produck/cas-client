@@ -31,7 +31,6 @@ app.use(bodyparser()).use(session(app)).use(KoaSessionCasClient({
 	casServerUrlPrefix: 'http://localhost:9000/cas',
 	serverName: 'http://127.0.0.1:2000',
 	client: {
-		gateway: true,
 		proxy: {
 			acceptAny: true,
 			callbackUrl: 'http://127.0.0.1:2000/abc',
@@ -53,43 +52,54 @@ app.use(bodyparser()).use(session(app)).use(KoaSessionCasClient({
 }).use(async ctx => {
 	const { ticket } = ctx;
 
-	const response = await ticket.request('http://127.0.0.1:3000/');
+	const { data } = await ticket.request('http://127.0.0.1:3000/').then(axios => {
+		return axios.post('/');
+	});
 
-	ctx.body = response.data;
+	ctx.body = data;
 }).listen(2000);
 
-// const KoaCasClient = require('../../wrap/koa2');
+const KoaCasClient = require('../../wrap/koa2');
 
-// const app2 = new Koa();
-// app2.use(KoaCasClient({
-// 	origin, prefix,
-// 	proxy: {
-// 		enabled: true,
-// 		accepted: true
-// 	}
-// })).use(async ctx => {
-// 	const { principal, ticket } = ctx;
+const app2 = new Koa();
+app2.use(KoaCasClient({
+	casServerUrlPrefix: 'http://localhost:9000/cas',
+	serverName: 'http://127.0.0.1:3000',
+	client: {
+		proxy: {
+			acceptAny: true,
+			callbackUrl: 'http://127.0.0.1:3000/proxyCallback',
+			receptorUrl: '/proxyCallback'
+		}
+	}
+})).use(async ctx => {
+	const { principal, ticket } = ctx;
 
-// 	const response = await ticket.request('http://127.0.0.1:4000/');
+	const response = await ticket.request('http://127.0.0.1:4000/').then(axios => {
+		return axios.post('/test');
+	});
 
-// 	// your statements...
-// 	ctx.body = '<p>This is App</p>';
-// 	ctx.body += `<a href="${origin}${prefix}/logout">SLO</a><pre>`;
-// 	ctx.body += JSON.stringify(principal, null, 2);
-// 	ctx.body += '</pre>';
-// 	ctx.body += response.data;
-// }).listen(3000);
+	// your statements...
+	ctx.body = '<p>This is App</p>';
+	ctx.body += `<a href="${origin}${prefix}/logout">SLO</a><pre>`;
+	ctx.body += JSON.stringify(principal, null, 2);
+	ctx.body += '</pre>';
+	ctx.body += response.data;
+}).listen(3000);
 
-// const app3 = new Koa();
-// app3.use(KoaCasClient({
-// 	origin, prefix,
-// 	proxy: {
-// 		accepted: true
-// 	}
-// })).use(async ctx => {
-// 	// your statements...
-// 	ctx.body = 'from the proxy proxy app.';
-// }).listen(4000);
+const app3 = new Koa();
+app3.use(KoaCasClient({
+	casServerUrlPrefix: 'http://localhost:9000/cas',
+	serverName: 'http://127.0.0.1:4000',
+	client: {
+		proxy: {
+			acceptAny: true,
+		}
+	}
+})).use(async ctx => {
+	// your statements...
+	ctx.body = 'from the proxy proxy app.';
+}).listen(4000);
 
 // const express = require('express');
 // const app4 = express();

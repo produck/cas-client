@@ -1,33 +1,3 @@
-const http = require('http');
-
-exports.request = function request(url, queryMapping = {}) {
-	const resolvedURL = new URL(url);
-
-	Object.keys(queryMapping).forEach(key => {
-		resolvedURL.searchParams.set(key, queryMapping[key]);
-	});
-
-	return new Promise((resolve, reject) => {
-		http.get(resolvedURL, res => {
-			const { statusCode } = res;
-	
-			if (res.statusCode !== 200 && res.statusCode !== 302) {
-				res.resume();
-				return reject (new Error(`Request Failed.\nStatus Code: ${statusCode}`));
-			}
-			
-			let data = '';
-			res.setEncoding('utf8');
-			res.on('data', (chunk) => { data += chunk; });
-			res.on('end', () => resolve({
-				data,
-				headers: res.headers,
-				status: res.statusCode
-			}));
-		}).on('error', error => reject(error));
-	});
-};
-
 exports.getRawBody = function getRawBody(request) {
 	let data = '';
 

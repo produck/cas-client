@@ -1,7 +1,7 @@
 const EventEmitter = require('events');
-const http = require('http');
-const { request, parseXML } = require('./utils');
+const { parseXML } = require('./utils');
 const debug = require('debug')('cas:store');
+const axios = require('axios');
 
 class ServiceTicketStore extends EventEmitter {
 	constructor(agent) {
@@ -45,15 +45,17 @@ class ServiceTicket {
 		return this;
 	}
 
-	async request(url, data, { method = 'GET', auth = '', headers = {} } = {}) {
-		if (!this.agent.proxy.enabled) {
+	async request(url) {
+		if (!this.agent.proxy) {
 			throw new Error('CAS Proxy feature is not enabled for the client this time.');
 		}
 
 		const appURL = new URL(url);
-		const proxyTicketResponse = await request(`${this.agent.proxyPath}`, {
-			pgt: this.pgt,
-			targetService: url
+		const proxyTicketResponse = await axios(this.agent.proxyUrl.href, {
+			params: {
+				pgt: this.pgt,
+				targetService: url
+			}
 		});
 
 		if (proxyTicketResponse.data) {
@@ -66,34 +68,14 @@ class ServiceTicket {
 			debug('Proxy applying failed.');
 		}
 
-		const redirectResponse = await request(appURL);
+		return axios.get(appURL.href, { maxRedirects: 0 }).catch(result => {
+			const { response } = result;
+			const { headers } = response;
 
-		return new Promise((resolve, reject) => {
-			const { headers } = redirectResponse;
-
-			const request = http.request(headers.location, {
-				headers: {
-					'Cookie': headers['set-cookie'][0]
-				}
-			}, response => {
-				let data = '';
-
-				response.setEncoding('utf8');
-				response.on('data', chunk => data += chunk);
-				response.on('error', error => reject(error));
-				response.on('end', () => resolve({
-					data,
-					status: response.statusCode,
-					headers: response.headers
-				}));
+			return axios.create({
+				baseURL: appURL.href,
+				headers: { 'Cookie': headers['set-cookie'][0] }
 			});
-
-			if (data) {
-				request.write(data);
-			}
-
-			request.on('error', error => reject(error));
-			request.end();
 		});
 	}
 }

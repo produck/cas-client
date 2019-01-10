@@ -7,7 +7,7 @@ const { getRawBody, parseXML, sendRedirect } = require('./src/utils');
 const { CasServerAgent } = require('./src/agent');
 const { ServiceTicketStore } = require('./src/store');
 
-module.exports = function createCasClientHandler(...options) {
+module.exports = function httpCasClient(...options) {
 	const clientOptions = merge(...options);
 	const agent = new CasServerAgent(clientOptions);
 	const store = new ServiceTicketStore(agent);
