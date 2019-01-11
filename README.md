@@ -12,6 +12,23 @@ We suppose you are already familiar with the CAS protocol, if not, please read t
 $ npm install http-cas-client
 ```
 
+## Feature
+
+* Singing Sign On (SSO)
+* CAS Proxy with axios api for POST, PUT, DELETE...
+* CAS Proxy - proxiex chain checking
+* Single Logout (SLO)
+* Renew & gateway
+* Native http module supported
+* No-session mode supported
+* Easy to wrap for all popular backend framework integration
+* Cluster friendly //TODO
+* Principal adapter for application debugging //TODO
+* SMAL1.1 //TODO
+* Restlet integration supported //TODO
+* Conditional skip CAS authentication //TODO
+* PT cache //TODO
+
 ## Getting Started
 
 ### CAS Client Handler for Native
