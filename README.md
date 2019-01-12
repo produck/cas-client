@@ -1,4 +1,5 @@
 # http-cas-client
+[![Build Status](https://travis-ci.org/lemonce/cas-client.svg?branch=master)](https://travis-ci.org/lemonce/cas-client)
 
 A complete implement of CAS Client middleware for Node.js, support CAS 1.0, 2.0+, 3.0+ protocol.
 
@@ -228,7 +229,6 @@ const defaultOptions = {
 	client: {
 		service: null,
 		slo: true, // Use SLO?
-		prefix: '/', // CAS Server custom deployment prefix
 		renew: false, // CAS renew.
 		gateway: false, // CAS gateway
 		useSession: false,
