@@ -224,7 +224,7 @@ declare namespace httpCasClient {
 	}
 }
 
-class CasServerAgent {
+declare class CasServerAgent {
 	constructor(options: httpCasClient.Options);
 }
 

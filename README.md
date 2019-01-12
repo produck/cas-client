@@ -1,5 +1,7 @@
 # http-cas-client
-[![Build Status](https://travis-ci.org/lemonce/cas-client.svg?branch=master)](https://travis-ci.org/lemonce/cas-client)
+[![Build Status](https://img.shields.io/travis/lemonce/cas-client.svg?style=flat-square)](https://www.npmjs.com/package/http-cas-client)
+[![NPM Downloads](https://img.shields.io/npm/dm/http-cas-client.svg?style=flat-square)](https://www.npmjs.com/package/http-cas-client)
+[![NPM Version](https://img.shields.io/npm/v/http-cas-client.svg?style=flat-square)](https://www.npmjs.com/package/http-cas-client)
 
 A complete implement of CAS Client middleware for Node.js, support CAS 1.0, 2.0+, 3.0+ protocol.
 
