@@ -3,6 +3,11 @@ const { parseXML } = require('./utils');
 const debug = require('debug')('cas:store');
 const axios = require('axios');
 const { URL } = require('url');
+const LRU = require('lru-cache');
+
+const PTCACHE_TIMEOUT = 1000 * 60 * 60;
+const PTCACHE_MAX_NUM = 50;
+
 
 class ServiceTicketStore extends EventEmitter {
 	constructor(agent) {
@@ -38,6 +43,10 @@ class ServiceTicket {
 		this.pgt = pgt;
 		this.principal = principal;
 		this.agent = agent;
+		this.ptCache = new LRU({
+			max: PTCACHE_MAX_NUM,
+			maxAge: PTCACHE_TIMEOUT
+		});
 	}
 
 	invalidate() {
@@ -52,24 +61,28 @@ class ServiceTicket {
 		}
 
 		const appURL = new URL(url);
-		const proxyTicketResponse = await axios(this.agent.proxyUrl.href, {
-			params: {
-				pgt: this.pgt,
-				targetService: url
-			}
-		});
-
-		if (proxyTicketResponse.data) {
-			const parsedPT = await parseXML(proxyTicketResponse.data);
-			
-			if (parsedPT.proxySuccess) {
-				appURL.searchParams.append('ticket', parsedPT.proxySuccess[0].proxyTicket[0]);
+		if(!this.ptCache.get(url)) {
+			const proxyTicketResponse = await axios(this.agent.proxyUrl.href, {
+				params: {
+					pgt: this.pgt,
+					targetService: url
+				}
+			});
+	
+			if (proxyTicketResponse.data) {
+				const parsedPT = await parseXML(proxyTicketResponse.data);
+				
+				if (parsedPT.proxySuccess) {
+					appURL.searchParams.append('ticket', parsedPT.proxySuccess[0].proxyTicket[0]);
+				}
+			} else {
+				debug('Proxy applying failed.');
 			}
 		} else {
-			debug('Proxy applying failed.');
+			return this.ptCache.get(url);
 		}
 
-		return axios.get(appURL.href, { maxRedirects: 0 }).catch(result => {
+		const ptSession =  axios.get(appURL.href, { maxRedirects: 0 }).catch(result => {
 			const { response } = result;
 			const { headers } = response;
 
@@ -78,6 +91,11 @@ class ServiceTicket {
 				headers: { 'Cookie': headers['set-cookie'][0] }
 			});
 		});
+
+		if(appURL.searchParams.get('ticket')) {
+			this.ptCache.set(url, ptSession);
+		}
+		return ptSession;
 	}
 }
 
