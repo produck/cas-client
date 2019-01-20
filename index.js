@@ -34,10 +34,21 @@ module.exports = function httpCasClient(...options) {
 	} = {}) {
 
 		/**
-		 * Skipt Authentication
+		 * Skip Authentication
 		 * TODO: express session & koa2 session
 		 */
 		if (agent.skip(req, res, clientOptions)) {
+			return true;
+		}
+
+		/**
+		 * Use principal adapter for debugging
+		 */
+		if (agent.principal) {
+			fakeTicket = 'default-st';
+			store.put(fakeTicket, {principal: agent.principal});
+			await ticketCreated(fakeTicket);
+			req.principal = agent.principal;
 			return true;
 		}
 

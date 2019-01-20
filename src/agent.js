@@ -19,7 +19,7 @@ class CasServerAgent extends EventEmitter {
 	constructor({
 		cas, casServerUrlPrefix, serverName,
 		client: {
-			renew, gateway, useSession, slo, method, proxy, service, ignore, skip
+			renew, gateway, useSession, slo, method, proxy, service, ignore, skip, principal
 		},
 		server: {
 			loginUrl, path
@@ -28,6 +28,7 @@ class CasServerAgent extends EventEmitter {
 		super();
 
 		this.ignoreValdate = ignoreValidatorFactory(ignore);
+		this.principal = principal?principalAdapter(cas, principal):null;
 		this.skip = skip
 
 		this.cas = cas;
@@ -158,6 +159,28 @@ function ignoreValidatorFactory(any) {
 	}
 
 	return url => any.find(regExp => regExp.test(url));
+}
+
+function principalAdapter(cas, principal) {
+	if(!principal.user) 
+		throw new Error('Must provide user for principal adapter!');
+
+	fakePrincipal = {user: principal.user};
+	attributes = {}
+	if (cas == 3) {
+		attributes = {};
+		attrs = principal.attributes;
+		Object.keys(attrs).forEach(key => {
+			if(attrs[key] instanceof Array) {
+				attributes[key] = attrs[key].join(",");
+			} else {
+				attributes[key] = typeof attrs[key] === 'string'? attrs[key] : JSON.stringify(attrs[key]);
+			}
+		});
+		fakePrincipal.attributes = attributes;
+	}
+
+	return fakePrincipal;
 }
 
 module.exports = {

@@ -46,13 +46,22 @@ http.createServer(async (req, res) => {
 }).listen(8082);
 
 /**
- * skip cas authentication
+ * Use principal adapter with cas3
  */
 const debugAuthHandler = createCasClientHandler({
 	casServerUrlPrefix: 'http://localhost:8080/cas',
 	serverName: 'http://127.0.0.1:8083',
-	debug: true
+	client: {
+		principal: {
+			user: "user1",
+			attributes: {
+				attr1: [1,2],
+				attr2: "test"
+			}
+		}
+	}
 });
+
 
 http.createServer(async (req, res) => {
 	if(!await debugAuthHandler(req, res)) {

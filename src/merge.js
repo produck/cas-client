@@ -22,6 +22,7 @@ module.exports = function mergeOptions(...optionsList) {
 				method = finalOptions.client.method,
 				ignore = finalOptions.client.ignore,
 				skip = finalOptions.client.skip,
+				principal = finalOptions.client.principal,
 				proxy
 			} = client;
 
@@ -33,6 +34,7 @@ module.exports = function mergeOptions(...optionsList) {
 			finalOptions.client.method = method;
 			finalOptions.client.ignore = ignore;
 			finalOptions.client.skip = skip;
+			finalOptions.client.principal = principal;
 
 			if (proxy) {
 				const {
@@ -117,6 +119,9 @@ const validateOptionsRule = {
 		renew: isBoolean,
 		gateway: isBoolean,
 		slo: isBoolean,
+		principal(value) {
+			return typeof value === 'object' || value === null;
+		},
 		ignore(value) {
 			if (Array.isArray(value)) {
 				return !value.find(value => !(value instanceof RegExp));
@@ -198,6 +203,7 @@ function DefaultOptionsFactory() {
 			method: 'GET',
 			ignore: [/\.(ico|css|js|jpe?g|svg|png)/],
 			skip: () => false,
+			principal: null,
 			proxy: {
 				acceptAny: false,
 				allowedChains: () => true,
