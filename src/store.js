@@ -5,7 +5,12 @@ const axios = require('axios');
 const LRU = require('lru-cache');
 
 const PTCACHE_TIMEOUT = 1000 * 60 * 60;
-const PTCACHE_MAX_NUM = 50;
+const PTCACHE_MAX_NUM = 500;
+
+const ptCache = new LRU({
+	max: PTCACHE_MAX_NUM,
+	maxAge: PTCACHE_TIMEOUT
+});
 
 
 class ServiceTicketStore extends EventEmitter {
@@ -42,10 +47,6 @@ class ServiceTicket {
 		this.pgt = pgt;
 		this.principal = principal;
 		this.agent = agent;
-		this.ptCache = new LRU({
-			max: PTCACHE_MAX_NUM,
-			maxAge: PTCACHE_TIMEOUT
-		});
 	}
 
 	invalidate() {
@@ -60,7 +61,8 @@ class ServiceTicket {
 		}
 
 		const appURL = new URL(url);
-		if(!this.ptCache.get(url)) {
+		const cacheKey = this.pgt + url;
+		if(!ptCache.get(cacheKey)) {
 			const proxyTicketResponse = await axios(this.agent.proxyUrl.href, {
 				params: {
 					pgt: this.pgt,
@@ -78,7 +80,7 @@ class ServiceTicket {
 				debug('Proxy applying failed.');
 			}
 		} else {
-			return this.ptCache.get(url);
+			return ptCache.get(cacheKey);
 		}
 
 		const ptSession =  axios.get(appURL.href, { maxRedirects: 0 }).catch(result => {
@@ -92,7 +94,7 @@ class ServiceTicket {
 		});
 
 		if(appURL.searchParams.get('ticket')) {
-			this.ptCache.set(url, ptSession);
+			ptCache.set(cacheKey, ptSession);
 		}
 		return ptSession;
 	}
