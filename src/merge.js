@@ -57,7 +57,7 @@ module.exports = function mergeOptions(...optionsList) {
 				path
 			} = server;
 
-			finalOptions.proxy.loginUrl = loginUrl;
+			finalOptions.server.loginUrl = loginUrl;
 
 			if (path) {
 				const {
