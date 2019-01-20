@@ -129,11 +129,6 @@ declare namespace httpCasClient {
 			 * About CAS proxy.
 			 */
 			proxy?: proxy;
-
-			/**
-			 * About fake principal for debugging.
-			 */
-			principal?: principal;
 		}
 
 		interface server {
@@ -230,12 +225,6 @@ declare namespace httpCasClient {
 			 * /my/receptor.
 			 */
 			receptorUrl?: String;
-		}
-
-		interface principal {
-			user?: String;
-
-			attributes?: Object;
 		}
 	}
 }

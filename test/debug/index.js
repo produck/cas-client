@@ -51,8 +51,8 @@ http.createServer(async (req, res) => {
 const debugAuthHandler = createCasClientHandler({
 	casServerUrlPrefix: 'http://localhost:8080/cas',
 	serverName: 'http://127.0.0.1:8083',
-	client: {
-		principal: {
+	principalAdapter: () => {
+		return {
 			user: "user1",
 			attributes: {
 				attr1: [1,2],

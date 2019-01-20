@@ -2,7 +2,7 @@ const EventEmitter = require('events');
 const debug = require('debug')('cas:agent');
 const axios = require('axios');
 const { parseXML } = require('./utils');
-const { URL } = require('url');
+
 
 const PGTIOU_TIMEOUT = 10000;
 
@@ -19,7 +19,7 @@ class CasServerAgent extends EventEmitter {
 	constructor({
 		cas, casServerUrlPrefix, serverName,
 		client: {
-			renew, gateway, useSession, slo, method, proxy, service, ignore, skip, principal
+			renew, gateway, useSession, slo, method, proxy, service, ignore, skip
 		},
 		server: {
 			loginUrl, path
@@ -28,7 +28,6 @@ class CasServerAgent extends EventEmitter {
 		super();
 
 		this.ignoreValdate = ignoreValidatorFactory(ignore);
-		this.principal = principal?principalAdapter(cas, principal):null;
 		this.skip = skip
 
 		this.cas = cas;
@@ -159,28 +158,6 @@ function ignoreValidatorFactory(any) {
 	}
 
 	return url => any.find(regExp => regExp.test(url));
-}
-
-function principalAdapter(cas, principal) {
-	if(!principal.user) 
-		throw new Error('Must provide user for principal adapter!');
-
-	fakePrincipal = {user: principal.user};
-	attributes = {}
-	if (cas == 3) {
-		attributes = {};
-		attrs = principal.attributes;
-		Object.keys(attrs).forEach(key => {
-			if(attrs[key] instanceof Array) {
-				attributes[key] = attrs[key].join(",");
-			} else {
-				attributes[key] = typeof attrs[key] === 'string'? attrs[key] : JSON.stringify(attrs[key]);
-			}
-		});
-		fakePrincipal.attributes = attributes;
-	}
-
-	return fakePrincipal;
 }
 
 module.exports = {

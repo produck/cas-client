@@ -1,7 +1,7 @@
 const cookie = require('cookie');
 const qs = require('qs');
 const debug = require('debug')('cas');
-const { URL } = require('url');
+
 
 const merge = require('./src/merge');
 const { getRawBody, parseXML, sendRedirect } = require('./src/utils');
@@ -42,20 +42,18 @@ module.exports = function httpCasClient(...options) {
 		}
 
 		/**
-		 * Use principal adapter for debugging
+		 * Ignore
 		 */
-		if (agent.principal) {
-			fakeTicket = 'default-st';
-			store.put(fakeTicket, {principal: agent.principal});
-			await ticketCreated(fakeTicket);
-			req.principal = agent.principal;
+		if (agent.ignoreValdate(req.url)) {
 			return true;
 		}
 
 		/**
-		 * Ignore
+		 * Use principal adapter for debugging
 		 */
-		if (agent.ignoreValdate(req.url)) {
+		if (clientOptions.principalAdapter) {
+			const principal = clientOptions.principalAdapter(req, res);
+			req.principal = validatePrincipal(agent.cas, principal);
 			return true;
 		}
 
@@ -172,3 +170,25 @@ module.exports = function httpCasClient(...options) {
 		return false;
 	};
 };
+
+function validatePrincipal(cas, principal) {
+	if(!principal.user) 
+		throw new Error('Must provide user for principal adapter!');
+
+	fakePrincipal = {user: principal.user};
+	attributes = {}
+	if (cas == 3) {
+		attributes = {};
+		attrs = principal.attributes;
+		Object.keys(attrs).forEach(key => {
+			if(attrs[key] instanceof Array) {
+				attributes[key] = attrs[key].join(",");
+			} else {
+				attributes[key] = typeof attrs[key] === 'string'? attrs[key] : JSON.stringify(attrs[key]);
+			}
+		});
+		fakePrincipal.attributes = attributes;
+	}
+
+	return fakePrincipal;
+}
