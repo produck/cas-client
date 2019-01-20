@@ -1,6 +1,7 @@
 const cookie = require('cookie');
 const qs = require('qs');
 const debug = require('debug')('cas');
+const { URL } = require('url');
 
 const merge = require('./src/merge');
 const { getRawBody, parseXML, sendRedirect } = require('./src/utils');
@@ -31,6 +32,14 @@ module.exports = function httpCasClient(...options) {
 			return qs.parse(await getRawBody(req));
 		}
 	} = {}) {
+
+		/**
+		 * Skipt Authentication
+		 * TODO: express session & koa2 session
+		 */
+		if (agent.skip(req, res, clientOptions)) {
+			return true;
+		}
 
 		/**
 		 * Ignore

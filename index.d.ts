@@ -1,4 +1,4 @@
-import { IncomingMessage, ServerResponse } from "http";
+import { IncomingMessage, ServerResponse, OutgoingMessage } from "http";
 
 declare namespace CAS {
 	type version = 1 | 2 | 3;
@@ -119,6 +119,11 @@ declare namespace httpCasClient {
 			 *  - Or provide a function to define custom rules.
 			 */
 			ignore?: RegExp[] | ((httpRequest: IncomingMessage) => Boolean | Promise<Boolean>);
+
+			/**
+			 * A callback function to decide skip cas authentication or not
+			 */
+			skip?: ((httpRequest: IncomingMessage, httpResponse: OutgoingMessage, options: Options) => Boolean | Promise<Boolean>);
 
 			/**
 			 * About CAS proxy.

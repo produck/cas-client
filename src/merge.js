@@ -21,6 +21,7 @@ module.exports = function mergeOptions(...optionsList) {
 				useSession =  finalOptions.client.useSession,
 				method = finalOptions.client.method,
 				ignore = finalOptions.client.ignore,
+				skip = finalOptions.client.skip,
 				proxy
 			} = client;
 
@@ -31,6 +32,7 @@ module.exports = function mergeOptions(...optionsList) {
 			finalOptions.client.useSession = useSession;
 			finalOptions.client.method = method;
 			finalOptions.client.ignore = ignore;
+			finalOptions.client.skip = skip;
 
 			if (proxy) {
 				const {
@@ -122,6 +124,9 @@ const validateOptionsRule = {
 
 			return value instanceof RegExp || typeof value === 'function';
 		},
+		skip(value) {
+			return typeof value === 'function';
+		},
 		proxy: {
 			acceptAny: isBoolean,
 			allowedChains(value) {
@@ -192,6 +197,7 @@ function DefaultOptionsFactory() {
 			useSession: false,
 			method: 'GET',
 			ignore: [/\.(ico|css|js|jpe?g|svg|png)/],
+			skip: () => false,
 			proxy: {
 				acceptAny: false,
 				allowedChains: () => true,

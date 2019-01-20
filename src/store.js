@@ -2,6 +2,7 @@ const EventEmitter = require('events');
 const { parseXML } = require('./utils');
 const debug = require('debug')('cas:store');
 const axios = require('axios');
+const { URL } = require('url');
 
 class ServiceTicketStore extends EventEmitter {
 	constructor(agent) {

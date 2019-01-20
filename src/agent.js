@@ -2,6 +2,7 @@ const EventEmitter = require('events');
 const debug = require('debug')('cas:agent');
 const axios = require('axios');
 const { parseXML } = require('./utils');
+const { URL } = require('url');
 
 const PGTIOU_TIMEOUT = 10000;
 
@@ -18,7 +19,7 @@ class CasServerAgent extends EventEmitter {
 	constructor({
 		cas, casServerUrlPrefix, serverName,
 		client: {
-			renew, gateway, useSession, slo, method, proxy, service, ignore
+			renew, gateway, useSession, slo, method, proxy, service, ignore, skip
 		},
 		server: {
 			loginUrl, path
@@ -27,6 +28,7 @@ class CasServerAgent extends EventEmitter {
 		super();
 
 		this.ignoreValdate = ignoreValidatorFactory(ignore);
+		this.skip = skip
 
 		this.cas = cas;
 		this.allowedChains = proxy.allowedChains;
