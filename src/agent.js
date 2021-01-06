@@ -28,7 +28,7 @@ class CasServerAgent extends EventEmitter {
 		super();
 
 		this.ignoreValdate = ignoreValidatorFactory(ignore);
-		this.skip = skip
+		this.skip = skip;
 
 		this.cas = cas;
 		this.allowedChains = proxy.allowedChains;
