@@ -1,6 +1,6 @@
 const httpCasClient = require('../');
 
-module.exports = function createCasClientKoaMiddleware(...options) {
+module.exports = function createCasClientExpressSessionMiddleware(...options) {
 	const handler = httpCasClient(...options);
 
 	return async function casClientMiddleware(req, res, next) {
