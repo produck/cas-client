@@ -120,7 +120,12 @@ class CasServerAgent extends EventEmitter {
 			
 			if (allAttributes) {
 				for (const key in allAttributes) {
-					parsedAttributes[key] = allAttributes[key][0];
+					if (allAttributes[key] && allAttributes[key].length > 1) {
+						parsedAttributes[key] = allAttributes[key];
+					}
+					else {
+						parsedAttributes[key] = allAttributes[key][0];
+					}
 				}
 			}
 		}
