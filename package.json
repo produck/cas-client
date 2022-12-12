@@ -22,7 +22,7 @@
     "koa": "^2.13.1",
     "koa-bodyparser": "^4.3.0",
     "koa-session": "^5.13.1",
-    "mocha": "^8.2.1"
+    "mocha": "^10.2.0"
   },
   "scripts": {
     "test": "mocha test"
