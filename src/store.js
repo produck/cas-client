@@ -62,17 +62,17 @@ class ServiceTicket {
 
 		const appURL = new URL(url);
 		const cacheKey = this.pgt + url;
-		if(!ptCache.get(cacheKey)) {
+		if (!ptCache.get(cacheKey)) {
 			const proxyTicketResponse = await axios(this.agent.proxyUrl.href, {
 				params: {
 					pgt: this.pgt,
 					targetService: url
 				}
 			});
-	
+
 			if (proxyTicketResponse.data) {
 				const parsedPT = await parseXML(proxyTicketResponse.data);
-				
+
 				if (parsedPT.proxySuccess) {
 					appURL.searchParams.append('ticket', parsedPT.proxySuccess[0].proxyTicket[0]);
 				}
@@ -83,7 +83,7 @@ class ServiceTicket {
 			return ptCache.get(cacheKey);
 		}
 
-		const ptSession =  axios.get(appURL.href, { maxRedirects: 0 }).catch(result => {
+		const ptSession = axios.get(appURL.href, { maxRedirects: 0 }).catch(result => {
 			const { response } = result;
 			const { headers } = response;
 
@@ -93,7 +93,8 @@ class ServiceTicket {
 			});
 		});
 
-		if(appURL.searchParams.get('ticket')) {
+		if (appURL.searchParams.get('ticket')) {
+			debug('Setting cache for session.');
 			ptCache.set(cacheKey, ptSession);
 		}
 		return ptSession;

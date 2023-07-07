@@ -67,7 +67,7 @@ module.exports = function httpCasClient(...options) {
 				debug('CAS client detected a POST method but not SLO request.');
 			} else {
 				debug('SLO request detected.');
-				
+
 				const { SessionIndex: [ticket] } = await parseXML(logoutRequest);
 				const serviceTicket = store.get(ticket);
 
@@ -77,7 +77,7 @@ module.exports = function httpCasClient(...options) {
 				} else {
 					debug(`Principal of ticket ST=${ticket} not found when SLO.`);
 				}
-				
+
 				res.end();
 
 				return false;
@@ -107,7 +107,7 @@ module.exports = function httpCasClient(...options) {
 		 * Try to resolve st mapped principal.
 		 */
 		const ticket = await getTicket();
-		
+
 		if (ticket) {
 			debug(`A ticket has been found ST=${ticket}.`);
 			const serviceTicket = store.get(ticket);
@@ -116,7 +116,7 @@ module.exports = function httpCasClient(...options) {
 				req.ticket = serviceTicket;
 				req.principal = serviceTicket.principal;
 				debug(`Principal has been injected to http.request by the ticket ST=${ticket}.`);
-				
+
 				return true;
 			} else {
 				store.remove(ticket);
@@ -125,7 +125,7 @@ module.exports = function httpCasClient(...options) {
 				await ticketDestroyed(ticket);
 			}
 		} else {
-			debug('No ticket found.');
+			debug('No ticket found (changed).');
 		}
 
 		/**
@@ -139,10 +139,10 @@ module.exports = function httpCasClient(...options) {
 
 			requestURL.searchParams.delete('ticket');
 			const serviceTicketOptions = await agent.validateService(newTicket, requestURL);
-			
+
 			debug(`Ticket ST=${newTicket} has been validated successfully.`);
 			store.put(newTicket, serviceTicketOptions);
-			
+
 			await ticketCreated(newTicket);
 
 			requestURL.searchParams.delete('_g');
@@ -172,19 +172,19 @@ module.exports = function httpCasClient(...options) {
 };
 
 function validatePrincipal(cas, principal) {
-	if(!principal.user) 
+	if (!principal.user)
 		throw new Error('Must provide user for principal adapter!');
 
-	fakePrincipal = {user: principal.user};
+	fakePrincipal = { user: principal.user };
 	attributes = {}
 	if (cas == 3) {
 		attributes = {};
 		attrs = principal.attributes;
 		Object.keys(attrs).forEach(key => {
-			if(attrs[key] instanceof Array) {
+			if (attrs[key] instanceof Array) {
 				attributes[key] = attrs[key].join(",");
 			} else {
-				attributes[key] = typeof attrs[key] === 'string'? attrs[key] : JSON.stringify(attrs[key]);
+				attributes[key] = typeof attrs[key] === 'string' ? attrs[key] : JSON.stringify(attrs[key]);
 			}
 		});
 		fakePrincipal.attributes = attributes;
